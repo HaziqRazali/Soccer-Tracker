@@ -1,0 +1,173 @@
+<?xml version="1.0"?>
+<opencv_storage>
+
+<!-- Names of video files -->
+<video1> C:\SoccerVid\1.avi </video1>
+<video2> C:\SoccerVid\2.avi </video2>
+<video3> C:\SoccerVid\3.avi </video3>
+<video4> C:\SoccerVid\4.avi </video4>
+<video5> C:\SoccerVid\5.avi </video5>
+<video6> C:\SoccerVid\6.avi </video6>
+
+<fieldModel> C:\SoccerVid\modelNew2.png </fieldModel>
+
+<!-- 
+    camera 1 : real 47 - 81 new 47 - 105
+    camera 2 : real 39 - 89 new 39 - 135
+    camera 3 : real 47 - 89 new 47 - 135
+    camera 4 : real 30 - 89 new 35 - 125
+    camera 5 : real 39 - 81 new 39 - 135
+    camera 6 : real 39 - 89 new 39 - 89
+-->
+
+<!-- hue intervals to remove for background substraction -->
+<!--
+<hue1> 47 105 </hue1>
+<hue2> 39 135 </hue2>
+<hue3> 47 135 </hue3>
+<hue4> 35 125 </hue4>
+<hue5> 39 135 </hue5>
+<hue6> 39 89 </hue6>
+-->
+<hue1> 47 81 </hue1>
+<hue2> 39 89 </hue2>
+<hue3> 47 89 </hue3>
+<hue4> 30 89 </hue4>
+<hue5> 39 81 </hue5>
+<hue6> 39 89 </hue6>
+ 
+
+<!-- Folder to write outputVideos to -->
+<outputVideoFolder> C:\SoccerVid\results\ </outputVideoFolder>
+
+<!-- homography matrices for cameras -->
+<homography1 type_id="opencv-matrix">
+  <rows>3</rows>
+  <cols>3</cols>
+  <dt>d</dt>
+  <data>
+    5.3608415917828123e-001 1.9293910165113934e+000
+    1.1233775219342288e+003 9.5535039115444819e-003
+    2.6175494987253267e+000 -2.7989463296233839e+002
+    1.5862308199046533e-005 1.2003129125721726e-003 1.</data></homography1>
+<homography2 type_id="opencv-matrix">
+  <rows>3</rows>
+  <cols>3</cols>
+  <dt>d</dt>
+  <data>
+    -5.0017049540461600e-001 2.1879413788766024e+000
+    2.1149416266581688e+003 1.1825799813047520e-002
+    -1.3265501361358545e+000 1.3624522176536484e+003
+    1.0233743254203167e-005 1.3688897737813373e-003 1.</data></homography2>
+<homography3 type_id="opencv-matrix">
+  <rows>3</rows>
+  <cols>3</cols>
+  <dt>d</dt>
+  <data>
+    5.0902537205127718e-001 1.2350831234278841e+000
+    4.7601845787816796e+002 -1.3065155938319210e-003
+    2.6793640138491055e+000 -2.5266405761947053e+002
+    -2.5777097879155663e-006 1.2758270546458495e-003 1.</data></homography3>
+<homography4 type_id="opencv-matrix">
+  <rows>3</rows>
+  <cols>3</cols>
+  <dt>d</dt>
+  <data>
+    -5.1302031052877473e-001 1.2109123189473763e+000
+    1.4556337545216822e+003 1.5997803342058503e-004
+    -1.2865584037569728e+000 1.3328581354778537e+003
+    8.5368071400656366e-007 1.2763975388357220e-003 1.</data></homography4>
+<homography5 type_id="opencv-matrix">
+  <rows>3</rows>
+  <cols>3</cols>
+  <dt>d</dt>
+  <data>
+    5.0574174669517657e-001 3.9850819434443868e-001
+    -1.7791476762786527e+002 -6.3192494009062889e-004
+    2.6468234598543972e+000 -2.4846935852555265e+002
+    3.4867226404711548e-006 1.2568107024045001e-003 1.</data></homography5>
+<homography6 type_id="opencv-matrix">
+  <rows>3</rows>
+  <cols>3</cols>
+  <dt>d</dt>
+  <data>
+    -5.3393205144453582e-001 4.2241060125204499e-001
+    8.3195236334760682e+002 -3.6959125247311951e-003
+    -1.3348178988031656e+000 1.3745916033080164e+003
+    1.1801709498548995e-006 1.3666794491537894e-003 1.</data></homography6>
+
+
+<!-- backGround mean color -->
+<backGrColor1>
+  6.3192939987461422e+001 9.7910176887538469e+001
+  8.4202479928626516e+001 0.</backGrColor1>
+<backGrColor2>
+  6.4600639622878091e+001 9.6717403025655869e+001
+  8.4448030464891957e+001 0.</backGrColor2>
+<backGrColor3>
+  6.3057834794560222e+001 1.0017645635513105e+002
+  8.0374625387731513e+001 0.</backGrColor3>
+<backGrColor4>
+  6.1530497677469143e+001 1.0171648614969136e+002
+  9.6386512103587989e+001 0.</backGrColor4>
+<backGrColor5>
+  6.8786263230131169e+001 1.0071673831693674e+002
+  8.4914463697916688e+001 0.</backGrColor5>
+<backGrColor6>
+  5.8930299681713024e+001 1.0307705452256951e+002
+  9.0573358362268522e+001 0.</backGrColor6>
+
+
+<!-- Whether the projection to the field should be horizontally flipped -->
+<projHFlip1> 0 </projHFlip1>
+<projHFlip2> 0 </projHFlip2>
+<projHFlip3> 0 </projHFlip3>
+<projHFlip4> 0 </projHFlip4>
+<projHFlip5> 0 </projHFlip5>
+<projHFlip6> 0 </projHFlip6>
+
+
+<!-- Whether the projection to the field should be vertically flipped -->
+<projVFlip1> 0 </projVFlip1>
+<projVFlip2> 0 </projVFlip2>
+<projVFlip3> 0 </projVFlip3>
+<projVFlip4> 0 </projVFlip4>
+<projVFlip5> 0 </projVFlip5>
+<projVFlip6> 0 </projVFlip6>
+
+
+<!-- Whether the picture from the camera is horizontally flipped -->
+<viewHFlip1> 0 </viewHFlip1>
+<viewHFlip2> 1 </viewHFlip2>
+<viewHFlip3> 0 </viewHFlip3>
+<viewHFlip4> 0 </viewHFlip4>
+<viewHFlip5> 0 </viewHFlip5>
+<viewHFlip6> 1 </viewHFlip6>
+
+
+<!-- Whether the picture from the camera is vertically flipped -->
+<viewVFlip1> 0 </viewVFlip1>
+<viewVFlip2> 0 </viewVFlip2>
+<viewVFlip3> 0 </viewVFlip3>
+<viewVFlip4> 0 </viewVFlip4>
+<viewVFlip5> 0 </viewVFlip5>
+<viewVFlip6> 0 </viewVFlip6>
+
+
+<!-- The range of ball radiuses (used for generating templates) -->
+<templRad1> 3 6 </templRad1>
+<templRad2> 3 6 </templRad2>
+<templRad3> 3 6 </templRad3>
+<templRad4> 3 6 </templRad4>
+<templRad5> 3 6 </templRad5>
+<templRad6> 3 6 </templRad6>
+
+<perspectiveRatio1> 0.46 </perspectiveRatio1>
+<perspectiveRatio2> 0.46 </perspectiveRatio2>
+<perspectiveRatio3> 0.44 </perspectiveRatio3>
+<perspectiveRatio4> 0.42 </perspectiveRatio4>
+<perspectiveRatio5> 0.45 </perspectiveRatio5>
+<perspectiveRatio6> 0.44 </perspectiveRatio6>
+
+
+</opencv_storage>
