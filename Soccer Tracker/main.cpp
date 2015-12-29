@@ -148,7 +148,6 @@ int main() {
 	//	}
 	//}
 
-	//cout << "hha" << endl;
 	//return 0;
 
 	//Ground truth visualization
