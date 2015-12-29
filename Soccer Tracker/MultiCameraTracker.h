@@ -134,6 +134,8 @@ struct ProjCandidate {
 		{
 			p_orig[0] = ti.GTcoord;
 
+			cout << p_orig[0];
+
 			// Upscale coordinates for projection onto top View ( 1920 x 1080 )
 			p_orig[0].x = p_orig[0].x * 2;
 			p_orig[0].y = p_orig[0].y * 2;
@@ -143,6 +145,9 @@ struct ProjCandidate {
 
 			_coord = p_proj[0];
 			GTcoord = _coord;
+
+			cout << " " << GTcoord << endl;
+
 		}
 
 		/********************************************************************************
@@ -186,7 +191,11 @@ class MultiCameraTracker {
 		vector<ProjCandidate*> currCandidates;
 		vector<vector<pair<Point,Point>>> result_final = vector<vector<pair<Point,Point>>>(6);
 
+
+		Point3d finalPoint3D;
 		Point3d GTfinalPoint3D;
+
+		Mat planeTrajectory;
 
 		//_____________________________________________________________________________________________
 	public:
@@ -230,8 +239,6 @@ class MultiCameraTracker {
 			//}
 			//#endif
 			
-			for (int i = 0; i < CAMERAS_CNT; i++)	result_final[i] = trackInfo[i].results;
-
 			/********************************************************************************
 										Prepare for 3D Analysis
 			*********************************************************************************/
@@ -246,7 +253,7 @@ class MultiCameraTracker {
 				// -- check current candidates
 				bool exists = false;
 
-				// Only if currCandidates exists
+				// Update (Only if currCandidates exists)
 				for (auto cc : currCandidates)
 				{
 					if (cc->ID == candidateId) 
@@ -416,77 +423,89 @@ class MultiCameraTracker {
 			else							GTfinalPoint3D = Point3d();
 			#endif*/
 
-			try
-			{
-				/********************************************************************************
-										Prepare for height estimation ( frame t )
-				*********************************************************************************/
-				// Re-initialize temporary container
-				vector<ProjCandidate*> tempBall;
-				int detections = 0;
-				Point3d finalPoint3D;
-
-				for (auto cc : currCandidates) if (cc->isRealBall) 
-				{ 
-					detections++; 
-					tempBall.push_back(cc); 
-				}
-
-				/********************************************************************************
-											Triangulate if 2 detections
-				*********************************************************************************/
-				if (detections == 2)
-				{
-					Point2f p1 = *(tempBall[0]->coordsKF.end() - 1);
-					Point2f p2 = *(tempBall[1]->coordsKF.end() - 1);
-
-					finalPoint3D = Triangulate(tempBall[0]->camCoords, Point3d(p1.x, p1.y, 0), tempBall[1]->camCoords, Point3d(p2.x, p2.y, 0)).second;
+			/********************************************************************************
+									Prepare for height estimation ( frame t )
+			*********************************************************************************/
 				
-					// Transfer data back to object
-					for (auto cc : currCandidates) if (cc->isRealBall) cc->coords3D.push_back(finalPoint3D);
-					
-					return;
-				}
+			// Re-initialize temporary container, detection count, 3D coords
+			vector<ProjCandidate*> tempBall;
+			int detections = 0;
+			finalPoint3D = Point3d();
 
-				/********************************************************************************
-									Internal Height Estimation if 1 detection
-				*********************************************************************************/                           
-				else if (detections == 1)
-				{
-					// At least 2 points for the formation of a Plane
-					if (tempBall[0]->coords3D.size() > 1)
-					{
-						Point2f projBallCoords = *(tempBall[0]->coordsKF.end() - 1);
-						Point3d camCoords = tempBall[0]->camCoords;
-
-						finalPoint3D = InternalHeightEstimation(camCoords, projBallCoords, formPlane(tempBall[0]->coords3D));
-
-						// If finalPoint3D != 0, opposite camera will then predict its 2D position
-						for (int i = 0; i < tempBall[0]->cameraVisible.size(); i++)
-						{
-							if (tempBall[0]->cameraVisible[i]->id != tempBall[0]->cameraID)
-							{
-								vector<Point2f> p_orig = vector<Point2f>(1);
-								vector<Point2f> p_proj = vector<Point2f>(1);
-
-								p_orig[0] = Inv_Triangulate(tempBall[0]->cameraVisible[i]->camCoords, finalPoint3D);
-								perspectiveTransform(p_orig, p_proj, tempBall[0]->cameraVisible[i]->homography.inv());
-
-								currCandidates[0]->other_coord.first  = p_proj[0];
-								currCandidates[0]->other_coord.second = tempBall[0]->cameraVisible[i]->id;
-							}
-						}
-					}
-
-					// Height = 0 if all fails
-					else finalPoint3D = Point3d((tempBall[0]->coordsKF.end() - 1)->x, (tempBall[0]->coordsKF.end() - 1)->y, 0);
-
-					// Transfer data back to container
-					for (auto cc : currCandidates) if (cc->isRealBall) cc->coords3D.push_back(finalPoint3D);
-				}				
+			// Push truePositives into container and increment detection count
+			for (auto cc : currCandidates) if (cc->isRealBall) 
+			{ 
+				detections++; 
+				tempBall.push_back(cc); 
 			}
 
-			catch (...) { cout << "Error at compute3D_coords() "; waitKey(0); }
+			/********************************************************************************
+										Triangulate if 2 detections
+			*********************************************************************************/
+			if (detections == 2)
+			{
+				// Destroy planeTrajectory
+				planeTrajectory = Mat();
+
+				Point2f p1 = *(tempBall[0]->coordsKF.end() - 1);
+				Point2f p2 = *(tempBall[1]->coordsKF.end() - 1);
+
+				finalPoint3D = Triangulate(tempBall[0]->camCoords, Point3d(p1.x, p1.y, 0), tempBall[1]->camCoords, Point3d(p2.x, p2.y, 0)).second;
+
+				// Transfer data back to object
+				for (auto cc : currCandidates) if (cc->isRealBall) cc->coords3D.push_back(finalPoint3D);
+					
+				return;
+			}
+
+			/********************************************************************************
+								Internal Height Estimation if 1 detection
+			*********************************************************************************/                           
+			else if (detections == 1)
+			{
+
+				// If plane not formed
+				if (planeTrajectory.empty())	planeTrajectory = formPlane(tempBall[0]->coords3D);
+
+				// At least 2 points for the formation of a Plane
+				if (tempBall[0]->coords3D.size() > 1)
+				{
+					// Current coordinates at time t
+					Point2f projBallCoords = *(tempBall[0]->coordsKF.end() - 1);
+
+					// Camera coordinates
+					Point3d camCoords = tempBall[0]->camCoords;
+
+					// Plane formed via last known 3D coordinates
+					planeTrajectory = formPlane(tempBall[0]->coords3D);
+						
+					// Estimate 3D coordinates
+					finalPoint3D = InternalHeightEstimation(camCoords, projBallCoords, planeTrajectory);
+
+					// If finalPoint3D != 0, opposite camera will then predict its 2D position
+					for (int i = 0; i < tempBall[0]->cameraVisible.size(); i++)
+					{
+						if (tempBall[0]->cameraVisible[i]->id != tempBall[0]->cameraID)
+						{
+							vector<Point2f> p_orig = vector<Point2f>(1);
+							vector<Point2f> p_proj = vector<Point2f>(1);
+
+							p_orig[0] = Inv_Triangulate(tempBall[0]->cameraVisible[i]->camCoords, finalPoint3D);
+							perspectiveTransform(p_orig, p_proj, tempBall[0]->cameraVisible[i]->homography.inv());
+
+							currCandidates[0]->other_coord.first  = p_proj[0];
+							currCandidates[0]->other_coord.second = tempBall[0]->cameraVisible[i]->id;
+						}
+					}
+				}
+
+				// Height = 0 if all fails
+				else finalPoint3D = Point3d((tempBall[0]->coordsKF.end() - 1)->x, (tempBall[0]->coordsKF.end() - 1)->y, 0);
+
+				// Transfer data back to container
+				for (auto cc : currCandidates) if (cc->isRealBall) cc->coords3D.push_back(finalPoint3D);
+			}				
+	
 
 		}
 
@@ -795,10 +814,10 @@ class MultiCameraTracker {
 
 		//=========================================================================================
 		Mat formPlane(vector<Point3d> points) {
-
+			
 			Point3d A(*(points.end() - 2));
 			Point3d B(*(points.end() - 1));
-
+			
 			cv::Mat temp(3, 1, CV_64FC1);
 			const double *data = temp.ptr<double>(0);
 
@@ -811,6 +830,7 @@ class MultiCameraTracker {
 			// Equation of the plane ax + by + cz - constant = 0... Task -> Mean / subset of RANSAC ?
 			Mat Plane = (Mat_<float>(1, 4) << N.x, N.y, 0, -(N.x * A.x + N.y * A.y));
 
+			cout << Plane << endl;
 			return Plane;
 		}
 

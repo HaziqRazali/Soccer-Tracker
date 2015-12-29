@@ -13,8 +13,18 @@ Contributions
 
 [✓]	Results and Conclusion
 
-Others
+Ball Recovery when it goes out of field
 []	Ball recovery when it goes 'out' of field
+
+Camera Handoff
+[✓] Revert to original
+[✓] SCH will form plane
+[✓] Find out how to store Mat planeTrajectory
+- Physics will establish trajectory
+- Plane will remain until double detections are found
+- All detections will be checked against plane
+
+Use mat.copyTo to clear region
 
 */
 
@@ -100,6 +110,7 @@ void _onMouse(int event, int x, int y, int flags, void* param) {
 	}
 }
 
+
 //=================================================================================================
 int main() {
 	
@@ -119,24 +130,26 @@ int main() {
 		sstm << "Camera " << i + 1 << ".txt";
 		outFile[i].open(sstm.str());
 	}
-
+	
 	// Save Ground Truth to file
-	/*ofstream outFile[6];
-	static stringstream sstm;
-	static bool Switch = false;
+	//ofstream outFile[6];
+	//static stringstream sstm;
 
-	for (int i = 0; i < 6; i++)
-	{
-		sstm.str("");
-		sstm << "Camera " << i + 1 << ".txt";
-		outFile[i].open(sstm.str());
+	//for (int i = 0; i < 6; i++)
+	//{
+	//	sstm.str("");
+	//	sstm << "Camera " << i + 1 << ".txt";
+	//	outFile[i].open(sstm.str());
 
-		for (int j = 0; j < givenTrajectories[i].size(); j++)
-		{
-			cout << givenTrajectories[i][j] << endl;
-			outFile[i] << givenTrajectories[i][j].x << " " << givenTrajectories[i][j].y << endl;
-		}
-	}*/
+	//	for (int j = 0; j < givenTrajectories[i].size(); j++)
+	//	{
+	//		//cout << givenTrajectories[i][j] << endl;
+	//		outFile[i] << givenTrajectories[i][j].x << " " << givenTrajectories[i][j].y << endl;
+	//	}
+	//}
+
+	//cout << "hha" << endl;
+	//return 0;
 
 	//Ground truth visualization
 	/*for (unsigned i = 0; i < givenTrajectories.size(); i++) 
@@ -168,6 +181,32 @@ int main() {
 
 	CameraHandler camHandler(configurator, videoReader);
 	MultiCameraTracker mcTracker;
+
+	/*
+	[Col, Row]
+	Camera 3 coord	= [960, 1080]
+			   Ball = [578, 64] ->[1054, 77]
+					= [559, 57] ->[1038, 45]
+					= [540, 50] ->[1022, 12]
+
+	[Col, Row]
+	Camera 4 coord	= [960, 0]
+			   Ball = [295, 386] ->[1051, 171]
+					= [327, 373] ->[1036, 191]
+					= [357, 361] ->[1022, 210]
+	*/
+
+	// Debug - Need to project ground truth
+	//pair<double, Point3d> V1 = mcTracker.Triangulate(Point3d(960, 1080, 140), Point3d(1054, 77, 0), Point3d(960, 0, 140), Point3d(1051, 171, 0));
+	//pair<double, Point3d> V2 = mcTracker.Triangulate(Point3d(960, 1080, 140), Point3d(1038, 45, 0), Point3d(960, 0, 140), Point3d(1036, 191, 0));
+	//pair<double, Point3d> V3 = mcTracker.Triangulate(Point3d(960, 1080, 140), Point3d(1022, 12, 0), Point3d(960, 0, 140), Point3d(1022, 210, 0));
+	////cout << V1.second << endl << V2.second << endl << V3.second << endl;
+
+	//vector<Point3d> V = { V1.second, V2.second, V3.second };
+	//Mat plane = mcTracker.formPlane(V);
+	//cout << plane << endl;
+
+	//return 0;
 
 	clock_t tic = clock();
 

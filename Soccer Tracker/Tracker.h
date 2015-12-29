@@ -253,77 +253,18 @@ class Tracker {
 		//=========================================================================================
 		void processFrame(Mat& frame, vector<Point>& ball_cand, vector<Rect>& player_cand, vector<ProjCandidate*> Ball, int TID, int processedFrames, ofstream& file) {
 
-			/********************************************************************************
-											  PLAYER TRACKING
-			*********************************************************************************/
+			this->Ball = Ball;
 
 			trackPlayers(player_cand, frame);
+			trackBall(frame, ball_cand, vector<ProjCandidate*>(), TID, processedFrames);
 
-			/********************************************************************************
-												BALL TRACKING
-			*********************************************************************************/
-			this->Ball = Ball; // Only used for drawing
-			/*std::string camera = "Camera";
-			std::string camID = camera + " " + std::to_string(TID + 1);
-			rectangle(frame, Rect(0, 0, 960, 30), Scalar(0, 0, 0), -1);
-			putText(frame, camID, Point(800, 25), cv::FONT_HERSHEY_DUPLEX, 1, CV_RGB(255, 255, 255), 1, 8);*/
+			drawTrajectory(frame, 2);
+			updateMetric(file);
 
-			//for (auto B : Ball) if (find_if(B->cameraVisible.begin(), B->cameraVisible.end(), [TID](Camera* c){ return c->id == TID; }) != B->cameraVisible.end())
+			drawBallGroundTruth(frame, 5);
+			//drawDistance(frame);
 
-			//std::find_if(Ball.begin(), Ball.end(), [TID](ProjCandidate* const b){ return b->cameraVisible == cameraID[i]; }) != currCandidates.end())
-
-			try
-			{
-				/********************************************************************************
-									Activate all cameras if ball not yet found
-				*********************************************************************************/
-				// if TrackRatio < threshold
-				// if not found at the end, reduce trackratio or increment lifetime of ball so that track ratio is reduced ?
-				
-				if (Ball.size() == 0 /*trackRatio < 0.5*/)
-				{
-					//putText(frame, "Searching", Point(25, 25), cv::FONT_HERSHEY_DUPLEX, 1, CV_RGB(255, 255, 255), 1, 8);
-					trackBall(frame, ball_cand, vector<ProjCandidate*>(), TID, processedFrames);
-				}
-
-				/********************************************************************************
-									Smart Tracking after the ball is found
-				*********************************************************************************/
-
-				else /*if (Ball[TID]->trackRatio > 0.5)*/
-				{
-					for (int j = 0; j < Ball[0]->cameraVisible.size(); j++)
-					{
-						if (Ball[0]->cameraVisible[j]->id == TID)
-						{
-							//putText(frame, "Active", Point(25, 25), cv::FONT_HERSHEY_DUPLEX, 1, CV_RGB(255, 255, 255), 1, 8);
-							trackerState = TRACKER_STATE::TRUE_POSITIVE_FOUND;
-							trackBall(frame, ball_cand, Ball, TID, processedFrames);
-							goto done;
-
-						}
-					}
-
-					/*rectangle(frame, Rect(0, 0, 960, 30), Scalar(0, 0, 0), -1);
-					putText(frame, "Inactive", Point(30, 30), cv::FONT_HERSHEY_DUPLEX, 1, CV_RGB(255, 255, 255), 1, 8);
-					putText(frame, camID, Point(930, 25), cv::FONT_HERSHEY_DUPLEX, 1, CV_RGB(255, 255, 255), 1, 8);*/
-					trackerState = TRACKER_STATE::BALL_NOT_FOUND;
-					ball_removeOutdatedCandidates(1);
-					ball_removeLostCandidates();
-				}
-
-				done:
-
-				// Draw trajectory of main candidate on white template
-				drawTrajectory(frame, 2);
-				updateMetric(file);
-
-				drawBallGroundTruth(frame, 5);
-				drawDistance(frame);
-
-				curFrame++;
-			}
-			catch (...) { cout << "Error at Track"; }
+			curFrame++;
 		}
 
 		//=========================================================================================
@@ -346,10 +287,6 @@ class Tracker {
 		void trackBall(Mat& frame, vector<Point>& newCandidates, vector<ProjCandidate*> truePositives, int TID, int processedFrames) {
 	
 			appearAnalyzer.setFrame(frame); 
-			
-			// if	tP.size() == 0 continue;
-			// else look through camera visible and do the relevant thing
-			// Task use find_if ?
 
 			switch (trackerState) {
 
@@ -1437,7 +1374,7 @@ class Tracker {
 
 			// Display text
 			char label[40];
-			sprintf(label, "%3.2f %d", height, Ball.size()/*, bc->curAppearM, Ball.size()*/);
+			sprintf(label, "%3.2f %d %d", height, bc->id, Ball.size()/*, bc->curAppearM, Ball.size()*/);
 			putText(frame, label, Point((bc->coordsKF.end() - 1)->x + 40, (bc->coordsKF.end() - 1)->y + 10), CV_FONT_HERSHEY_COMPLEX_SMALL, 2, Scalar(255, 255, 255));
 
 		}
