@@ -1,7 +1,10 @@
 ﻿/*
 
-1 pixel in x = 0.0546m
-1 pixel in y = 0.0629m
+1 pixel in x = 0.05464m
+1 pixel in y = 0.06291m
+Radius of ball = 0.7m
+
+If everything is in meters, then find out how to generate actual velocity given 2 frames
 
 Contributions
 [✓]	Compile video datasets
@@ -13,15 +16,17 @@ Contributions
 
 [✓]	Results and Conclusion
 
-Ball Recovery when it goes out of field
+Others
 []	Ball recovery when it goes 'out' of field
+[]  Write about 'administration' in report ie. placement of camera, conversion of pixel (modelView) to meters
 
 Camera Handoff
 [✓] Revert to original
 [✓] SCH will form plane
 [✓] Find out how to store Mat planeTrajectory
+[✓] Plane will remain until double detections are found
 - Physics will establish trajectory
-- Plane will remain until double detections are found
+- Determine landing spot for fun
 - All detections will be checked against plane
 
 Use mat.copyTo to clear region
@@ -181,21 +186,21 @@ int main() {
 	CameraHandler camHandler(configurator, videoReader);
 	MultiCameraTracker mcTracker;
 
-	/*
-	[Col, Row]
-	Camera 3 coord	= [960, 1080]
-			   Ball = [578, 64] ->[1054, 77]
-					= [559, 57] ->[1038, 45]
-					= [540, 50] ->[1022, 12]
+	
+	//[Col, Row]
+	//Camera 3 coord	= [960, 1080]
+	//		   Ball = [578, 64] ->[1054, 77]
+	//				= [559, 57] ->[1038, 45]
+	//				= [540, 50] ->[1022, 12]
 
-	[Col, Row]
-	Camera 4 coord	= [960, 0]
-			   Ball = [295, 386] ->[1051, 171]
-					= [327, 373] ->[1036, 191]
-					= [357, 361] ->[1022, 210]
-	*/
+	//[Col, Row]
+	//Camera 4 coord	= [960, 0]
+	//		   Ball = [295, 386] ->[1051, 171]
+	//				= [327, 373] ->[1036, 191]
+	//				= [357, 361] ->[1022, 210]
+	//
 
-	// Debug - Need to project ground truth
+	////Debug - Need to project ground truth
 	//pair<double, Point3d> V1 = mcTracker.Triangulate(Point3d(960, 1080, 140), Point3d(1054, 77, 0), Point3d(960, 0, 140), Point3d(1051, 171, 0));
 	//pair<double, Point3d> V2 = mcTracker.Triangulate(Point3d(960, 1080, 140), Point3d(1038, 45, 0), Point3d(960, 0, 140), Point3d(1036, 191, 0));
 	//pair<double, Point3d> V3 = mcTracker.Triangulate(Point3d(960, 1080, 140), Point3d(1022, 12, 0), Point3d(960, 0, 140), Point3d(1022, 210, 0));
