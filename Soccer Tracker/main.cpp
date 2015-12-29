@@ -1,54 +1,22 @@
-/************************************************************************************************* 
-
+﻿/*
 
 1 pixel in x = 0.0546m
 1 pixel in y = 0.0629m
 
-I thought Mat = pass by reference
+Contributions
+[✓]	Compile video datasets
+[✓]	3D Localization
+[✓]	Multiple and Single Camera Height Estimation
+[]	Physics Based Height Estimation
+[]	Camera Handoff
+[]	Camera Coordinates Extraction
 
-TruePositive must contain
-- String to enable / disable track
-- Position of one camera
-- Position of 3D ball coordinate
+[✓]	Results and Conclusion
 
-Tomorrow:
-- Complete circularity
-- If outcome is bad or not satisfying, revert to original code
+Others
+[]	Ball recovery when it goes 'out' of field
 
-Task 1 : Compile video datasets												 [ COMPLETED ]
----- ISSIA, IEEE, VSPETS
-
-Task 2 : Multiple Camera Height Estimation									 [ COMPLETED ]
----- Write function for Triangulation										 [ DONE ]
-
-Task 3 : Smart Tracking	+ Camera handoff									 [ COMPLETED ]
----- Find actual 3D Camera position											 [ NOT DONE ]
----- Simple spatial constraints for 2nd ball recovery	
----- Epipolar Constraint for multi-camera detection				             [ DONE ]
----- Enable feedback														 [ DONE ]
----- Camera prediction														 [ OPTIMIZE Kalman or Abandon Kalman and use Physics ]
----- trackRatio + path matching to keep cameras active for Task 6 and 4
-	 ---- Pass Track Ratio to other cameras
-	 ---- How to reduce Track Ratio
-
-Task 4 : Single Camera Height Estimation									 [ COMPLETED ]
----- Allow Ball to accumulate its 3D coordinates							 [ DONE ]
----- Form equation of plane that is perpendicular to the ground plane        [ DONE ]
----- Internal Height Estimation												 [ DONE ]
----- Make it robust to outliers (RANSAC / ETC)                               [ ]
----- Forced Observation for both cameras                                     [ NOT DONE ]
-
-Task 5 : Results and Conclusion
----- Fix Ground Truth														 [ DONE ]
----- Triangulate Ground Truth												 [ DONE ]
----- Get Results ( Precision + Recall )                                      [ DONE ]
----- Extrapolate and Plot
-
-Task 6 : Physics Based Height Estimation
----- Establish kinematics equation
-
-
-*************************************************************************************************/
+*/
 
 #include <opencv\cv.h>
 #include <opencv2\opencv.hpp>

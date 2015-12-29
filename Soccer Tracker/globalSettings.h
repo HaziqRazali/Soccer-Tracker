@@ -20,14 +20,14 @@ double scaleLoad = 0.5;
 const int gui_camPreviewH = 1080, gui_camPreviewW = 1920;
 const int gui_modelH = 652, gui_modelW = 948;
 
-//#define WRITE_VIDEO // save video to disk
+#define WRITE_VIDEO // save video to disk
 #define DISPLAY_GROUND_TRUTH // display ground truth
 #define NOT_FROM_THE_BEGINING // begin tracking from frame 361 (where the groundtruth starts)
 #define START_FRAME 300
 #define PLAYERS_KF // apply Kalman Filtering for players
 #define WINDOW_PERSPECTIVE // take distance to the camera into the considiration
 
-const int OUT_FRAME_RATE = 5; // frame rate for writing video
+const int OUT_FRAME_RATE = 20; // frame rate for writing video
 const int SLOW_MOTION_REPEAT_TIME = 20; // slows down the tracking
 
 //*************************************************************************************************
