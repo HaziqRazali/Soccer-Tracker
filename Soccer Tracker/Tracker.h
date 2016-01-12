@@ -285,6 +285,10 @@ class Tracker {
 			}
 			return false;
 		}
+		//=========================================================================================
+		void ballOutOfPlay() {
+		
+}
 
 		//=========================================================================================
 		void trackBall(Mat& frame, vector<Point>& newCandidates, vector<ProjCandidate*> truePositives, int TID, int processedFrames) {
@@ -297,44 +301,46 @@ class Tracker {
 				case TRACKER_STATE::BALL_NOT_FOUND :
 
 
+					// Need condition.. If prev trajectory indicates that ball is out of play.. Switch to 1
+					// But when to switch back to zero ?
+
 					/*******************************************************************
 
 												BALL OUT OF PLAY
 
-					********************************************************************/
-					// if (Ball not found and previous position was out of play)
-					// if (Player feet out of side line)
-					// {
-					//    generate candidate
-					//    add full score
-					//    attach to player head
-					// }
-					
-					/*if (TID == 3 && processedFrames > 780)
-					{*/
-						for (unsigned i = 0; i < pCandidates.size(); i++)
+					********************************************************************/					
+					for (unsigned i = 0; i < pCandidates.size(); i++)
+					{
+						int feet = pCandidates[i]->curRect.br().y;
+
+						// Player out of side line (add area condition)
+						if (feet > 520 && pCandidates[i]->curRect.area() > 550 && pCandidates[i]->teamID != 2)
 						{
-							Point feet(pCandidates[i]->curRect.br());
+							// Initialize ball coordinate at top of player rect
+							Point head(pCandidates[i]->curRect.tl().x + pCandidates[i]->curRect.width / 2, pCandidates[i]->curRect.tl().y);
 
-							// Player out of side line (add area condition)
-							if (Rect(0, 520, 960, 40).contains(feet) && pCandidates[i]->curRect.area() > 550)
-							{
-								// Initialize ball candidate at tl of player
-								Point head(pCandidates[i]->curRect.tl().x + pCandidates[i]->curRect.width / 2, pCandidates[i]->curRect.tl().y);
+							// Add new candidate and attach it to player head
+							BallCandidate* bc = new BallCandidate(curFrame, head, iniRad, 0.0);
 
-								circle(frame, head, 100, Scalar(0, 0, 255), 1);
+							bc->curCrd = head;
+							#ifdef WINDOW_PERSPECTIVE
+							bc->curRad = perspectiveRad(defRad, bc->curCrd);
+							#else
+							bc->curRad = defRad;
+							#endif	
+							bc->fitFrame();
+							bc->curAppearM = 10;
+							bc->switchState(curFrame, BALL_STATE::TRACKING);
 
-								// ball_updateBallCandidate
-								BallCandidate* bc = new BallCandidate(curFrame, head, iniRad, 0.0);
-								bc->curAppearM = 1;
-								bc->updateStep();
-								bc->switchState(curFrame, BALL_STATE::TRACKING);
-								bCandidates.push_back(bc);
+							// Push back curState many times
+							bc->updateStep(10); // Dunno
 
-								goto done;
-							}
+							// Transfer data to bCandidates
+							bCandidates.push_back(bc);
+
+							goto done;
 						}
-					/*}*/
+					}
 
 					/*******************************************************************
 					
@@ -351,19 +357,21 @@ class Tracker {
 						ball_addMoreCandidates(newCandidates, frame, 2, TID);
 					}
 
-					done:
 					for (auto bc : bCandidates) 
 					{
 						// Performs tracking of all bCandidates and classifies each as Tracking / Searching... Updates lifeTime of Ball [ for removeOutdatedCandidates function ]
 						ball_updateBallCandidate(bc, frame, TID);
 					}
 
+					
 					ball_removeLostCandidates();
 					ball_removeStuckedCandidates(0.4);
+				done:
 					ball_chooseMainCandidate();
 
 					if (mainCandidate != NULL) 
 					{
+
 						trackerState = TRACKER_STATE::BALL_FOUND;
 					}
 
@@ -542,14 +550,13 @@ class Tracker {
 
 					Point nCrd   = matchPoints[0];
 					double nProb = matchProbs[0];
-					/*float nCirc	 = circularity;*/
 
 					bc->predCrd = bc->KF.correct(nCrd);								// UPDATE FRAME T
 					bc->predCrd = Point(bc->KF.predict().x, bc->KF.predict().y);	// PREDICT FOR FRAME T+1
 					bc->predCrd = Point(bc->KF.predict().x, bc->KF.predict().y);
 					
 					// if CC < 0.94
-					if (nProb < 0.94/* && nCirc > 1.3*/) 
+					if (nProb < 0.94) 
 					{
 						bc->switchState(curFrame, BALL_STATE::SEARCHING);
 						break;
@@ -558,7 +565,6 @@ class Tracker {
 					// --- no switch performed
 					bc->curCrd = nCrd;
 					bc->curAppearM = nProb;
-					/*bc->curCirc = nCirc;*/
 					break;
 				}
 				//_____________________________________________________________
@@ -843,6 +849,7 @@ class Tracker {
 
 			for (auto bc : bCandidates) 
 			{
+				// track Ratio is a function of the duration at which the ball has being tracked
 				double trackRatio = double(bc->getStateDuration(states)) / bc->lifeTime;
 				if (trackRatio < ratio) 
 				{
@@ -1140,11 +1147,10 @@ class Tracker {
 			// Calculate score for tCandidates
 			for (auto possCand : tCandidates)
 			{
-				//circle(frame, possCand->curCrd, 10, (0, 0, 0));
 				vector<Point> points;
 				vector<double> probs;
 
-				// Calculate NCC score
+				// Correlate
 				appearAnalyzer.getMatches(possCand, 1, points, probs);
 
 				Point nCrd = possCand->curCrd;
@@ -1172,7 +1178,7 @@ class Tracker {
 			sort(tCandidates.begin(), tCandidates.end(), BallCandidate::compareLastAppearM);
 			vector<BallCandidate*> toDelete;
 			int lh = int(min(double(cnt), double(tCandidates.size())));
-
+			
 			for (int i = 0; i < lh; i++)
 			{
 				BallCandidate* bc = tCandidates[i];
@@ -1208,21 +1214,6 @@ class Tracker {
 			// Extract additional candidates through contour analysis
 			//vector<pair<float, Point>> newCand = appearAnalyzer.evaluateContours(positionConstraint);
 
-			/*if (TID == 2)
-			{
-				cout << "A" << endl;
-				for (auto possCand : possibleCandidates)	cout << possCand << endl;
-				cout << "B" << endl;
-				for (auto c : newCand)
-				{
-					cout << c.second << " " << c.first << endl;
-					circle(frame, c.second, 30, Scalar(255, 0, 255));
-				}
-			}*/
-
-			// Update possibleCandidates
-			//for (auto nc : newCand) possibleCandidates.push_back(nc.second);
-
 			// Loop through new set of candidates
 			for (auto possCand : possibleCandidates)
 			{
@@ -1248,9 +1239,6 @@ class Tracker {
 					}
 				}
 				
-				// 3) ----- check that new candidate is satisfies position constraint ----- Not required, evaluate contour is constrained
-				//if (norm(Mat(possCand), Mat(positionConstraint), NORM_L2) > 50)	contains = true;
-
 				if (!contains)
 				{
 					// Update tCandidates
@@ -1353,6 +1341,7 @@ class Tracker {
 				//{
 					if		(p->teamID == 1) rectangle(frame, p->curRect, CV_RGB(0, 0, 255), 1);
 					else if (p->teamID == 0) rectangle(frame, p->curRect, CV_RGB(255, 255, 255), 1);
+					else if (p->teamID == 2) rectangle(frame, p->curRect, CV_RGB(0, 0, 0), 1);
 					else					 rectangle(frame, p->curRect, CV_RGB(128, 50, 0), 1);
 				//}
 			}
@@ -1375,7 +1364,7 @@ class Tracker {
 			//}
 			
 			label += /*";  " + */metric.toString_prc();
-			//setLabel (frame, Rect(0, 0, 900, 20), label);
+			setLabel (frame, Rect(0, 0, 900, 20), label);
 		}
 
 		//=========================================================================================
@@ -1420,15 +1409,15 @@ class Tracker {
 			for (int i = 0; i < Ball.size(); i++)	if (TID == Ball[i]->cameraID)	height = (Ball[i]->coords3D.end() - 1)->z;
 
 			//// Track ratio
-			//double trackRatio = double(bc->getStateDuration(BALL_STATE::TRACKING)) / bc->lifeTime;
-
-			//Rect standard(bc->curCrd.x - 10, bc->curCrd.y - 10, 20, 20);
+			double trackRatio = double(bc->getStateDuration(BALL_STATE::TRACKING)) / bc->lifeTime;
+			
 			// Ball state
 			rectangle(frame, bc->curRect, boxColor);
+			circle(frame, bc->curCrd, 10, CV_RGB(0, 0, 255));
 
 			// Display text
 			char label[40];
-			sprintf(label, "%3.2f", height/*, bc->id, Ball.size()*//*, bc->curAppearM, Ball.size()*/);
+			sprintf(label, "%0.2f %d %f", trackRatio, bc->getStateDuration(BALL_STATE::TRACKING), bc->curAppearM/*, bc->id, Ball.size()*//*, bc->curAppearM, Ball.size()*/);
 			putText(frame, label, Point((bc->coordsKF.end() - 1)->x + 40, (bc->coordsKF.end() - 1)->y + 10), CV_FONT_HERSHEY_COMPLEX_SMALL, 2, Scalar(255, 255, 255));
 
 		}

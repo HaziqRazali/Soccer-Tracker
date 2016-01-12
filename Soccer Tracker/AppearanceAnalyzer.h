@@ -29,6 +29,7 @@ class AppearanceAnalyzer {
 
 		Mat frame, restrictedArea;
 		Mat teamA, teamB;
+		Mat referee;
 
 		vector<Mat> ballTempls;
 		
@@ -57,6 +58,14 @@ class AppearanceAnalyzer {
 
 			temp.row(0).copyTo(teamA);
 			temp.row(1).copyTo(teamB);
+			temp.release();
+
+			FileStorage bb("Referee.xml", FileStorage::READ);
+			bb["Referee"] >> temp;
+
+			temp.copyTo(referee);
+
+			temp.release();
 		}
 
 		//=========================================================================================
@@ -81,7 +90,8 @@ class AppearanceAnalyzer {
 			cand->curRect = cand->curRect & bounds;
 	
 			Mat crop = frame(cand->curRect);
-			Mat temp = crop.clone();
+			//Mat temp = crop.clone();
+			Mat temp = crop;
 
 			// Dunno what this is for
 			Mat RA_crop = restrictedArea(cand->curRect);
@@ -167,11 +177,22 @@ class AppearanceAnalyzer {
 				featureVector.convertTo(featureVector, CV_32FC1);
 
 				// Classify
-				float distToA = norm(featureVector, teamA, NORM_L2);
-				float distToB = norm(featureVector, teamB, NORM_L2);
+				vector<float> dist;
+				dist.push_back(norm(featureVector, teamA, NORM_L2));
+				dist.push_back(norm(featureVector, teamB, NORM_L2));
+				dist.push_back(norm(featureVector, referee, NORM_L2));
 
-				if (distToA < distToB) return 0;
-				else				   return 1;
+				return std::min_element(dist.begin(), dist.end()) - dist.begin();
+
+				//cout << min_index << endl;
+
+				//// Classify
+				//float distToA		= norm(featureVector, teamA, NORM_L2);
+				//float distToB		= norm(featureVector, teamB, NORM_L2);
+				//float distToReferee = norm(featureVector, referee, NORM_L2);
+
+				//if (distToA < distToB) return 0;
+				//else				   return 1;
 			}
 		}
 

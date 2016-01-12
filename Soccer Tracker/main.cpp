@@ -27,7 +27,7 @@ Team identification
 
 Camera Handoff
 [✓] Revert to original
-[✓] SCH will form plane
+[✓] Internal Height Estimation will form plane
 [✓] Find out how to store Mat planeTrajectory
 [✓] Plane will remain until double detections are found
 - Physics will establish trajectory
@@ -400,7 +400,7 @@ int main() {
 				#ifdef WRITE_VIDEO
 				vidWriter << frame;
 				#endif
-				//cout << camViewRect.width << " " << camViewRect.height << endl;
+				
 				resize(frame, frame, Size(camViewRect.width, camViewRect.height));
 
 				frame.copyTo(cameraView(camViewRect));

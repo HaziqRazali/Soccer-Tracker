@@ -4,6 +4,7 @@
 #include "KalmanFilter.h"
 #include <cv.h>
 #include <vector>
+#include<iostream>
 
 using namespace cv;
 using namespace std;
@@ -142,6 +143,8 @@ class BallCandidate {
 		int getStateDuration (BALL_STATE _state)
 		{
 			int counter = 0;
+
+			// Loop though all states
 			for (auto& st : states) 
 			{
 				if (st == _state) 
@@ -169,12 +172,14 @@ class BallCandidate {
 		}
 
 		//=========================================================================================
-		void updateStep () {
+		void updateStep (int boost = 1) {
 			// ---------- save all made changes ----------
 			if (!curStateSaved) 
 			{
 				states.push_back(curState);
 			}
+
+			if (boost > 1) for (int i = 0; i < boost; i++) states.push_back(curState);
 
 			fitFrame();
 
