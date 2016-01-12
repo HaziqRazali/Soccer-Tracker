@@ -22,6 +22,7 @@ class PlayerCandidate {
 		int id;
 		int updateTime;
 		int predictTime;
+		int teamID;
 
 		vector<Point> coords;
 		vector<Rect> prevRects;
@@ -34,7 +35,7 @@ class PlayerCandidate {
 		bool ballAttached;
 
 		//=========================================================================================
-		PlayerCandidate (int time, Point crd, Rect rect) {
+		PlayerCandidate (int time, Point crd, Rect rect, int teamID) {
 			this->id = ID_counter++ * ID_groups_cnt + ID_shift;
 			lifeTime = 0;
 
@@ -46,6 +47,7 @@ class PlayerCandidate {
 			this->endTrackTime = -1;
 			this->curCrd = crd;
 			this->curRect = rect;
+			this->teamID = teamID;
 			
 			updateTime = lifeTime;
 			predictTime = 0;

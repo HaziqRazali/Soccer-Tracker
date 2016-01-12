@@ -2,15 +2,15 @@
 
 1 pixel in x = 0.05464m
 1 pixel in y = 0.06291m
-Radius of ball = 0.7m
+Radius of ball (Googled) = 0.7m
 
 If everything is in meters, then find out how to generate actual velocity given 2 frames
 
-Contributions
+TTD
 [✓]	Compile video datasets
 [✓]	3D Localization
 [✓]	Multiple and Single Camera Height Estimation
-[]	Physics Based Height Estimation
+[]	Physics
 []	Camera Handoff
 []	Camera Coordinates Extraction
 
@@ -18,7 +18,12 @@ Contributions
 
 Others
 []	Ball recovery when it goes 'out' of field
+[]  Correlation mask
 []  Write about 'administration' in report ie. placement of camera, conversion of pixel (modelView) to meters
+[]  MOG
+
+Team identification
+
 
 Camera Handoff
 [✓] Revert to original
@@ -28,8 +33,6 @@ Camera Handoff
 - Physics will establish trajectory
 - Determine landing spot for fun
 - All detections will be checked against plane
-
-Use mat.copyTo to clear region
 
 */
 
@@ -69,6 +72,7 @@ int pauseFlag = 0;
 vector<Rect> cameraViewRects;
 int globalFrameCount = 0;
 
+void testFunc();
 
 //=================================================================================================
 void _onMouse(int event, int x, int y, int flags, void* param) {
@@ -180,7 +184,6 @@ int main() {
 	string outputVideoFolder = configurator->readObject<string>("outputVideoFolder") + getTimeString() + "\\";
 	createFolder(outputVideoFolder);
 	st::VideoWriter videoWriter(outputVideoFolder);
-
 	#endif
 
 	CameraHandler camHandler(configurator, videoReader);
@@ -214,7 +217,16 @@ int main() {
 
 	clock_t tic = clock();
 
+	// Initialize camera + labels
 	Mat cameraView(gui_camPreviewH, gui_camPreviewW, CV_8UC3);
+	putText(cameraView, "Camera 5", Point(0    + 230, 930), FONT_HERSHEY_SIMPLEX, 1.0, Scalar(0, 0, 0));
+	putText(cameraView, "Camera 3", Point(640  + 230, 930), FONT_HERSHEY_SIMPLEX, 1.0, Scalar(0, 0, 0));
+	putText(cameraView, "Camera 1", Point(1280 + 230, 930), FONT_HERSHEY_SIMPLEX, 1.0, Scalar(0, 0, 0));
+
+	putText(cameraView, "Camera 6", Point(0    + 230, 170), FONT_HERSHEY_SIMPLEX, 1.0, Scalar(0, 0, 0));
+	putText(cameraView, "Camera 4", Point(640  + 230, 170), FONT_HERSHEY_SIMPLEX, 1.0, Scalar(0, 0, 0));
+	putText(cameraView, "Camera 2", Point(1280 + 230, 170), FONT_HERSHEY_SIMPLEX, 1.0, Scalar(0, 0, 0));
+
 	scalePreview = 1.0 / 3; // preview size will be 640 x 360
 
 	// Camera Coordinates are not at the extreme corners. Origin is at top left
@@ -279,6 +291,10 @@ int main() {
 			BackGroundRemover remover(500, 256, 5, false);
 			ContourAnalyzer cAnalyzer;
 
+			/*Ptr<BackgroundSubtractorMOG2> MOG2;
+			MOG2 = createBackgroundSubtractorMOG2();
+			MOG2->setShadowValue(0);*/
+
 			Tracker tracker;
 			tracker.initialize();
 			tracker.setBallTempls(camera->ballTemplates);
@@ -317,6 +333,7 @@ int main() {
 				}
 
 				// ========== retrieve new frame ==========
+				
 				if (!camCapture.read(frame)) 
 				{
 					#pragma omp critical
@@ -331,7 +348,7 @@ int main() {
 					continue;
 				}
 				#endif
-		
+
 				// ========== preprocess frame ==========
 				resize(frame, frame, Size(960,540), 0, 0, INTER_AREA);
 
@@ -383,14 +400,15 @@ int main() {
 				#ifdef WRITE_VIDEO
 				vidWriter << frame;
 				#endif
-
+				//cout << camViewRect.width << " " << camViewRect.height << endl;
 				resize(frame, frame, Size(camViewRect.width, camViewRect.height));
+
 				frame.copyTo(cameraView(camViewRect));
 
 				if (TID == 0) 
 				{
-					cameraView(Rect(0, 0, 200, 100)) = CV_RGB(0, 0, 0);
-					putText(cameraView, to_string(processedFrames), Point(10, 50), FONT_HERSHEY_DUPLEX, 1.0, CV_RGB(255, 255, 255));
+					cameraView(Rect(640 + 210, 0, 200, 100)) = CV_RGB(0, 0, 0);
+					putText(cameraView, to_string(processedFrames), Point(640 + 280, 50), FONT_HERSHEY_DUPLEX, 1.0, CV_RGB(255, 255, 255));
 				}
 
 
@@ -526,6 +544,100 @@ int main() {
 
 	system("PAUSE");
 	return 0;
+}
+
+void testFunc2() {
+
+
+
+}
+
+void testFunc() {
+
+	BackGroundRemover remover(500, 256, 5, false);
+
+	int hbins = 18;
+	int channels[] = { 0 };
+	int histSize[] = { hbins };
+	float hranges[] = { 0, 180 };
+	const float* ranges[] = { hranges };
+
+	Mat patch_HSV_A, patch_HSV_B, patch_HSV_C;
+	Mat imgA_mask, imgB_mask, imgC_mask;
+	MatND HistA, HistB, HistC;
+
+	// Read in RGB
+	Mat imgA = imread("White1.png");
+	Mat imgB = imread("White3.png");
+	Mat imgC = imread("Blue1.png");
+
+	// Convert to HSV
+	cvtColor(imgA, patch_HSV_A, CV_BGR2HSV);
+	cvtColor(imgB, patch_HSV_B, CV_BGR2HSV);
+	cvtColor(imgC, patch_HSV_C, CV_BGR2HSV);
+
+	// Generate mask ( remove green pixels )
+	remover.HistMethod(imgA, imgA_mask);
+	remover.HistMethod(imgB, imgB_mask);
+	remover.HistMethod(imgC, imgC_mask);
+
+	//// Extract Hue
+	//vector<Mat> hsv_planes;
+	//split(patch_HSV_A, hsv_planes);
+
+	//// Remove green pixels from HUE
+	//Mat mask = imgA_mask / 255;
+	//cout << mask;
+	//multiply(hsv_planes[0], mask, hsv_planes[0]);
+
+	namedWindow("Player A", CV_WINDOW_NORMAL); imshow("Player A", imgA);	//namedWindow("Mask A", CV_WINDOW_NORMAL);  imshow("Mask A", imgA_mask);
+	namedWindow("Player B", CV_WINDOW_NORMAL); imshow("Player B", imgB);	//imshow("Mask B", imgB_mask);
+	namedWindow("Player C", CV_WINDOW_NORMAL); imshow("Player C", imgC);	imshow("Mask C", imgC_mask);
+
+	// Calculate histogram and normalize
+	calcHist(&patch_HSV_A, 1, channels, imgA_mask, HistA, 1, histSize, ranges, true, false);
+	normalize(HistA, HistA, 0, 255, CV_MINMAX);
+
+	calcHist(&patch_HSV_B, 1, channels, imgB_mask, HistB, 1, histSize, ranges, true, false);
+	normalize(HistB, HistB, 0, 255, CV_MINMAX);
+
+	calcHist(&patch_HSV_C, 1, channels, imgC_mask, HistC, 1, histSize, ranges, true, false);
+	normalize(HistC, HistC, 0, 255, CV_MINMAX);
+
+	// COMPARE SIMILARITY
+	cout << "A vs B = " << compareHist(HistA, HistB, CV_COMP_BHATTACHARYYA) << endl;
+	cout << "A vs C = " << compareHist(HistA, HistC, CV_COMP_BHATTACHARYYA) << endl;
+	cout << "B vs C = " << compareHist(HistB, HistC, CV_COMP_BHATTACHARYYA) << endl;
+	
+	//Mat for drawing 
+	Mat histimg = Mat::zeros(200, 320, CV_8UC3);
+	histimg = Scalar::all(0);
+	int binW = histimg.cols / hbins;
+	Mat buf(1, hbins, CV_8UC3);
+
+	//Set RGB color
+	for (int i = 0; i < hbins; i++)	buf.at< Vec3b>(i) = Vec3b(saturate_cast< uchar>(i*180. / hbins), 255, 255);
+
+	cvtColor(buf, buf, CV_HSV2BGR);
+
+	//drawing routine
+	for (int i = 0; i < hbins; i++)
+	{
+		// UPDATE HERE !
+		int val = saturate_cast< int>(HistA.at< float>(i)*histimg.rows / 255);
+
+		rectangle(histimg, Point(i*binW, histimg.rows),
+			Point((i + 1)*binW, histimg.rows - val),
+			Scalar(buf.at< Vec3b>(i)), -1, 8);
+		int r, g, b;
+		b = buf.at< Vec3b>(i)[0];
+		g = buf.at< Vec3b>(i)[1];
+		r = buf.at< Vec3b>(i)[2];
+
+		//show bin and RGB value
+		//printf("[%d] r=%d, g=%d, b=%d , bins = %d \n", i, r, g, b, val);
+	}
+	imshow("Histogram", histimg);
 }
 
 // ********** example of code to save backGrColor to file **********

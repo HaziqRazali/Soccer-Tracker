@@ -60,14 +60,19 @@ class BackGroundRemover {
 
 		//=========================================================================================
 		Mat processFrame (Mat& frame) {
+
 			normalizeImage(frame, normalizedFrame);
+
 			if (smoothSize != -1) {
 				smoothImage(normalizedFrame, smoothSize);
 			}
+
 			HistMethod(normalizedFrame, resultMask, true);
+
 			if (applyMorphologic) {
 				applyMorphological(resultMask, resultMask);
 			}
+
 			//imshow("M", resultMask);
 			//foo (binMask, resized, frame);
 			return resultMask;
@@ -91,16 +96,19 @@ class BackGroundRemover {
 
 		//=========================================================================================
 		void HistMethod (Mat& frame, Mat& binMask, bool withAccumulator = true) {
+			
 			// calculate hist for green channel of normalized image
 			MatND histG;
 			calcHist(&frame, 1, channels, Mat(), histG, 1, numOfBins, ranges);
 			MatND hMask = MatND::ones(bins, 1, CV_32FC1);
+			
 			if (withAccumulator) {
 				allHists.push_back(histG.clone());
 				if (isTheSameScene(histG)) {
 					updateAccumulator(histG, histG);
 				}
 			}
+
 			MatND smoothedHistG = Histogrammer::filterHist(histG);
 			MatND histMask = Histogrammer::getHistMask(smoothedHistG);
 			multiply(histG, histMask, histG);
@@ -129,24 +137,34 @@ class BackGroundRemover {
 
 		//=========================================================================================
 		inline void normalizeImage (Mat& input, Mat& output) {
+			
 			int b, g, r, s;
+
 			int fH = input.rows;
 			int fW = input.cols;
+
 			if (input.isContinuous() && output.isContinuous()) {
 				fW = fW * fH;
 				fH = 1;
 			}
-			for (int i = 0; i < fH; i++) {
+
+			for (int i = 0; i < fH; i++) 
+			{
 				uchar* inp = input.ptr<uchar>(i);
 				uchar* outp = output.ptr<uchar>(i);
-				for (int j = 0; j < fW; j++) {
+
+				for (int j = 0; j < fW; j++) 
+				{
 					b = *inp++;
 					g = *inp++;
 					r = *inp++;
 					s = r + g + b;
-					if (s == 0) {
+
+					if (s == 0) 
+					{
 						s = 1;
 					}
+
 					*outp++ = 255 * b / s;
 					*outp++ = 255 * g / s;
 					*outp++ = 255 * r / s;

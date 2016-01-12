@@ -84,7 +84,7 @@ struct ProjCandidate {
 	}
 
 	//=============================================================================================
-	void update (TrackInfo& ti, int frameCnt, bool flipV) {
+	void update (TrackInfo& ti, int frameCnt, bool flipH) {
 
 		vector<Point2f> p_orig = vector<Point2f>(1);
 		vector<Point2f> p_proj = vector<Point2f>(1);
@@ -101,6 +101,8 @@ struct ProjCandidate {
 		// Upscale coordinates for projection onto top View ( 1920 x 1080 )
 		p_orig[0].x = p_orig[0].x * 2;
 		p_orig[0].y = p_orig[0].y * 2;
+
+		if (flipH) p_orig[0] = flipHor(p_orig[0]);
 
 		// Projection function
 		perspectiveTransform(p_orig, p_proj, homography);
@@ -171,6 +173,10 @@ struct ProjCandidate {
 	//=============================================================================================
 	Polygon getLastPolygon () {
 		return *(bounds.end()-1);
+	}
+
+	Point2f flipHor(Point2f point) {
+		return Point2f(1920 - point.x, point.y);
 	}
 
 };
@@ -265,7 +271,7 @@ class MultiCameraTracker {
 					if (cc->ID == candidateId) 
 					{
 						used.push_back(cc);
-						cc->update(trackInfo[i], framesProcessed, cameras[i]->projVFlip);
+						cc->update(trackInfo[i], framesProcessed, cameras[i]->projHFlip);
 						exists = true;
 						break;
 					}
@@ -277,7 +283,7 @@ class MultiCameraTracker {
 					ProjCandidate* newCand = new ProjCandidate(candidateId, i, cameras[i]->camCoords, cameras[i]->homography);
 
 					// Projects ball coordinate onto the Top View.. Task -> Check if can remove cameras[i]->projVFlip
-					newCand->update(trackInfo[i], framesProcessed, cameras[i]->projVFlip);
+					newCand->update(trackInfo[i], framesProcessed, cameras[i]->projHFlip);
 					currCandidates.push_back(newCand);
 					used.push_back(newCand);
 				}
@@ -316,7 +322,7 @@ class MultiCameraTracker {
 				compute3D_Coords();
 				
 				// Camera handoff for frame t + 1
-				cameraHandoff();
+				//cameraHandoff();
 				
 			}	catch (...) { cout << "Error at process"; waitKey(0); }
 
@@ -487,7 +493,7 @@ class MultiCameraTracker {
 					planeTrajectory = formPlane(tempBall[0]->coords3D);
 
 					// Kinematics analysis
-					establishTrajectory(tempBall[0]->coords3D);
+					//establishTrajectory(tempBall[0]->coords3D);
 				}
 
 				// Estimate 3D coordinates if plane exists
@@ -503,7 +509,7 @@ class MultiCameraTracker {
 					finalPoint3D = InternalHeightEstimation(camCoords, projBallCoords, planeTrajectory);
 
 					// If finalPoint3D != 0, opposite camera will then predict its 2D position
-					/*for (int i = 0; i < tempBall[0]->cameraVisible.size(); i++)
+					for (int i = 0; i < tempBall[0]->cameraVisible.size(); i++)
 					{
 						if (tempBall[0]->cameraVisible[i]->id != tempBall[0]->cameraID)
 						{
@@ -516,7 +522,7 @@ class MultiCameraTracker {
 							currCandidates[0]->other_coord.first  = p_proj[0];
 							currCandidates[0]->other_coord.second = tempBall[0]->cameraVisible[i]->id;
 						}
-					}*/
+					}
 				}
 
 				// Height = 0 if all fails
@@ -538,7 +544,7 @@ class MultiCameraTracker {
 			// Calculate time it lands
 			landingTime = abs(4.9 / velocity.z);
 			int landingTime_f = landingTime * 25;
-			cout << landingTime << endl;
+			//cout << landingTime << endl;
 
 			// Establish trajectory
 			estimatedTrajectory = vector<Point3d>();

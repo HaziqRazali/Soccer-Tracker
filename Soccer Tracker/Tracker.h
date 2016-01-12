@@ -64,7 +64,10 @@ class Tracker {
 
 		//=========================================================================================
 		void initialize () {
+
 			appearAnalyzer.setBallTempls(ballTempls);
+			appearAnalyzer.generateClassifier();
+
 			curFrame = 0;
 			flg = true;
 
@@ -256,7 +259,7 @@ class Tracker {
 			this->Ball = Ball;
 
 			trackPlayers(player_cand, frame);
-			trackBall(frame, ball_cand, vector<ProjCandidate*>(), TID, processedFrames);
+			trackBall(frame, ball_cand, Ball, TID, processedFrames);
 
 			drawTrajectory(frame, 2);
 			updateMetric(file);
@@ -293,15 +296,62 @@ class Tracker {
 				//_____________________________________________________________
 				case TRACKER_STATE::BALL_NOT_FOUND :
 
+
+					/*******************************************************************
+
+												BALL OUT OF PLAY
+
+					********************************************************************/
+					// if (Ball not found and previous position was out of play)
+					// if (Player feet out of side line)
+					// {
+					//    generate candidate
+					//    add full score
+					//    attach to player head
+					// }
+					
+					/*if (TID == 3 && processedFrames > 780)
+					{*/
+						for (unsigned i = 0; i < pCandidates.size(); i++)
+						{
+							Point feet(pCandidates[i]->curRect.br());
+
+							// Player out of side line (add area condition)
+							if (Rect(0, 520, 960, 40).contains(feet) && pCandidates[i]->curRect.area() > 550)
+							{
+								// Initialize ball candidate at tl of player
+								Point head(pCandidates[i]->curRect.tl().x + pCandidates[i]->curRect.width / 2, pCandidates[i]->curRect.tl().y);
+
+								circle(frame, head, 100, Scalar(0, 0, 255), 1);
+
+								// ball_updateBallCandidate
+								BallCandidate* bc = new BallCandidate(curFrame, head, iniRad, 0.0);
+								bc->curAppearM = 1;
+								bc->updateStep();
+								bc->switchState(curFrame, BALL_STATE::TRACKING);
+								bCandidates.push_back(bc);
+
+								goto done;
+							}
+						}
+					/*}*/
+
+					/*******************************************************************
+					
+												
+					
+					********************************************************************/
+
 					// Destroy ball if it has been tracked over 5 frames but not established as a mainCandidate
 					ball_removeOutdatedCandidates(5);
 
+					// Adds Candidates into bCandidates with BALL_STATE::TRACKING
 					if (bCandidates.size() < 2) 
 					{
-						// Adds Candidates into bCandidates with BALL_STATE::TRACKING
 						ball_addMoreCandidates(newCandidates, frame, 2, TID);
 					}
 
+					done:
 					for (auto bc : bCandidates) 
 					{
 						// Performs tracking of all bCandidates and classifies each as Tracking / Searching... Updates lifeTime of Ball [ for removeOutdatedCandidates function ]
@@ -399,7 +449,7 @@ class Tracker {
 		}
 
 		//=========================================================================================
-		inline void updateAttachedHeight (Rect& pRect, BallCandidate* bc) {
+		inline void updateAttachedHeight (Rect& pRect, BallCandidate* bc, int default = 0) {
 			double h;
 
 			int b_y = bc->curCrd.y, p_y_top = pRect.y;
@@ -457,9 +507,10 @@ class Tracker {
 
 						Rect pRect = pCandidates[nearestP_Idx]->curRect;
 
-						// Assume location of ball to be at feet / head / etc of player
+						// Determine attach height of ball (bc->attachedHeight)
 						updateAttachedHeight(pRect, bc);
 
+						// Update attach height of ball to be at head / mid / feet
 						bc->curCrd = Point(pRect.x + pRect.width/2, pRect.y + int(bc->attachedHeight * pRect.height));
 						#ifdef WINDOW_PERSPECTIVE
 							bc->curRad = Point(pRect.width/2, pRect.height/2) + perspectiveRad(attachRad, bc->curCrd);
@@ -481,10 +532,6 @@ class Tracker {
 					vector<Point> matchPoints;
 					vector<double> matchProbs;
 					appearAnalyzer.getMatches(bc, 1, matchPoints, matchProbs);
-
-					// Evaluate contour if condition is true
-					/*float circularity;
-					appearAnalyzer.evaluateContours(bc->curCrd, circularity);*/
 
 					// matchPoints is never empty
 					if (matchPoints.empty()) 
@@ -809,17 +856,17 @@ class Tracker {
 
 		//=========================================================================================
 		void trackPlayers (vector<Rect>& newCandidates, Mat& frame) {
+			
+			appearAnalyzer.setFrame(frame);
 
-			// ----- calculate coords for all new candidates -----
-
+			// calculate coords for all new candidates
 			vector<Point> newCandCoords;
-
-			for (auto& c : newCandidates) 
+			for (auto& c : newCandidates)
 			{
 				newCandCoords.push_back(Point (c.x + c.width/2, c.y));
 			}
 
-			// ----- proceed all existant players -----
+			// proceed all existing players
 			vector<int> usedCandidates (newCandCoords.size(), 0);
 			double minDist = 20.0;
 
@@ -830,6 +877,7 @@ class Tracker {
 				getDist(p->curCrd, newCandCoords, distance, true);
 				int minIdx = std::distance(distance.begin(), min_element(distance.begin(), distance.end()));
 				
+				// If new player candidate is inside existing candidate
 				if ((!newCandidates.empty()) && (distance[minIdx] < minDist)) 
 				{
 					// --- choose the closest one
@@ -871,7 +919,8 @@ class Tracker {
 			{
 				if (usedCandidates[i] == 0) 
 				{
-					pCandidates.push_back(new PlayerCandidate(curFrame, newCandCoords[i], newCandidates[i]));
+					int pCandidate_teamID = appearAnalyzer.getTeamID(newCandidates[i]);
+					pCandidates.push_back(new PlayerCandidate(curFrame, newCandCoords[i], newCandidates[i], pCandidate_teamID));
 				}
 			}
 
@@ -883,6 +932,7 @@ class Tracker {
 
 			// ----- delete outdated players -----
 			vector<PlayerCandidate*> toDelete;
+
 			for (auto p : pCandidates) 
 			{
 				if (p->predictTime > 5) 
@@ -1051,8 +1101,7 @@ class Tracker {
 		}
 
 		//=========================================================================================
-
-		void ball_addMoreCandidates (vector<Point>& possibleCandidates, Mat& frame, int cnt, int TID) {
+		void ball_addMoreCandidates(vector<Point>& possibleCandidates, Mat& frame, int cnt, int TID) {
 
 			vector<BallCandidate*> tCandidates;
 
@@ -1281,48 +1330,52 @@ class Tracker {
 			}
 
 			// draw player candidates trace
-			for (auto c : pCandidates) 
+			/*for (auto c : pCandidates) 
 			{
 				unsigned s = unsigned(max(double(c->coords.size())-50, 1.0));
 				for (unsigned i = s; i < c->coords.size(); i++) 
 				{
-					line(frame, c->coords[i-1], c->coords[i], CV_RGB(128,50,0), 1, CV_AA);
+					if		(c->teamID == 1) line(frame, c->coords[i-1], c->coords[i], CV_RGB(0, 0, 255), 1, CV_AA);
+					else if (c->teamID == 0) line(frame, c->coords[i-1], c->coords[i], CV_RGB(255, 255, 255), 1, CV_AA);
+					else					 line(frame, c->coords[i-1], c->coords[i], CV_RGB(128, 50, 0), 1, CV_AA);
 				}
-			}
+			}*/
 
 			// draw rectangles around the players
 			for (auto p : pCandidates) 
 			{
-				if (p->ballAttached)
-				{
-					rectangle(frame, p->curRect, CV_RGB(0,0,255), 1);
-				} 
+				//if (p->ballAttached)
+				//{
+				//	rectangle(frame, p->curRect, CV_RGB(0,0,255), 1);
+				//} 
 
-				else 
-				{
-					rectangle(frame, p->curRect, CV_RGB(128,50,0), 1);
-				}
+				//else 
+				//{
+					if		(p->teamID == 1) rectangle(frame, p->curRect, CV_RGB(0, 0, 255), 1);
+					else if (p->teamID == 0) rectangle(frame, p->curRect, CV_RGB(255, 255, 255), 1);
+					else					 rectangle(frame, p->curRect, CV_RGB(128, 50, 0), 1);
+				//}
 			}
 
 			// ----- display number of players tracked and number of ballCandidates -----
 			string label = "";
 			//label += to_string(pCandidates.size());
 
-			if (/*trackerState == TRACKER_STATE::BALL_FOUND || */trackerState == TRACKER_STATE::TRUE_POSITIVE_FOUND)
-			{
-				label += " YES";
-			} 
-			else if (trackerState == TRACKER_STATE::BALL_NOT_FOUND)
-			{
-				label += " NO";
-			}
-			else if (trackerState == TRACKER_STATE::BALL_FOUND)
-			{
-				label += "MAYBE";
-			}
+			//if (/*trackerState == TRACKER_STATE::BALL_FOUND || */trackerState == TRACKER_STATE::TRUE_POSITIVE_FOUND)
+			//{
+			//	label += " YES";
+			//} 
+			//else if (trackerState == TRACKER_STATE::BALL_NOT_FOUND)
+			//{
+			//	label += " NO";
+			//}
+			//else if (trackerState == TRACKER_STATE::BALL_FOUND)
+			//{
+			//	label += "MAYBE";
+			//}
 			
-			label += ";  " + metric.toString_prc();
-			setLabel (frame, Rect(0, 0, 900, 20), label);
+			label += /*";  " + */metric.toString_prc();
+			//setLabel (frame, Rect(0, 0, 900, 20), label);
 		}
 
 		//=========================================================================================
@@ -1366,15 +1419,16 @@ class Tracker {
 			float height = 0;
 			for (int i = 0; i < Ball.size(); i++)	if (TID == Ball[i]->cameraID)	height = (Ball[i]->coords3D.end() - 1)->z;
 
-			// Track ratio
-			double trackRatio = double(bc->getStateDuration(BALL_STATE::TRACKING)) / bc->lifeTime;
+			//// Track ratio
+			//double trackRatio = double(bc->getStateDuration(BALL_STATE::TRACKING)) / bc->lifeTime;
 
+			//Rect standard(bc->curCrd.x - 10, bc->curCrd.y - 10, 20, 20);
 			// Ball state
 			rectangle(frame, bc->curRect, boxColor);
 
 			// Display text
 			char label[40];
-			sprintf(label, "%3.2f %d %d", height, bc->id, Ball.size()/*, bc->curAppearM, Ball.size()*/);
+			sprintf(label, "%3.2f", height/*, bc->id, Ball.size()*//*, bc->curAppearM, Ball.size()*/);
 			putText(frame, label, Point((bc->coordsKF.end() - 1)->x + 40, (bc->coordsKF.end() - 1)->y + 10), CV_FONT_HERSHEY_COMPLEX_SMALL, 2, Scalar(255, 255, 255));
 
 		}
@@ -1500,27 +1554,37 @@ class Tracker {
 			}
 			deleteTrackObjects_(bCandidates, toDelete);
 		}
-
+			
 		//=========================================================================================
 		void mergePlayers() {
+
 			auto groups = merge_(pCandidates, &Tracker::compareMerge_Player);
+			
 			vector<PlayerCandidate*> toDelete;
-			for (auto i : groups) {
-				if (i.empty()) {
-					break;
-				}
+			
+			for (auto i : groups) 
+			{
+				if (i.empty()) break;
+
 				Point mergedCrd;
 				Rect mergedRect;
-				for (auto j : i) {
+				int mergedID;
+
+				for (auto j : i) 
+				{
 					mergedCrd = j->curCrd;
 					mergedRect = j->curRect;
+					mergedID = j->teamID;
 					toDelete.push_back(j);
 				}
-				pCandidates.push_back(new PlayerCandidate(curFrame, mergedCrd, mergedRect));
+
+				pCandidates.push_back(new PlayerCandidate(curFrame, mergedCrd, mergedRect, mergedID));
 			}
+
 			deleteTrackObjects_(pCandidates, toDelete);
 		}
 
+		//=========================================================================================
 		Point Inv_Triangulate(Point3f cam, Point3f ball) {
 
 			// Vector of line from camera to ball

@@ -120,11 +120,11 @@
 
 <!-- Whether the projection to the field should be horizontally flipped -->
 <projHFlip1> 0 </projHFlip1>
-<projHFlip2> 0 </projHFlip2>
+<projHFlip2> 1 </projHFlip2>
 <projHFlip3> 0 </projHFlip3>
-<projHFlip4> 0 </projHFlip4>
+<projHFlip4> 1 </projHFlip4>
 <projHFlip5> 0 </projHFlip5>
-<projHFlip6> 0 </projHFlip6>
+<projHFlip6> 1 </projHFlip6>
 
 
 <!-- Whether the projection to the field should be vertically flipped -->
@@ -138,11 +138,11 @@
 
 <!-- Whether the picture from the camera is horizontally flipped -->
 <viewHFlip1> 0 </viewHFlip1>
-<viewHFlip2> 1 </viewHFlip2>
+<viewHFlip2> 0 </viewHFlip2>
 <viewHFlip3> 0 </viewHFlip3>
-<viewHFlip4> 0 </viewHFlip4>
+<viewHFlip4> 1 </viewHFlip4>
 <viewHFlip5> 0 </viewHFlip5>
-<viewHFlip6> 1 </viewHFlip6>
+<viewHFlip6> 0 </viewHFlip6>
 
 
 <!-- Whether the picture from the camera is vertically flipped -->
