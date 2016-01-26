@@ -29,7 +29,6 @@ class BallCandidate {
 
 		int lifeTime, id, curTemplSize;
 		Point curCrd, curRad, LU_Point, RD_Point;
-		Point predCrd;
 		Rect curRect;
 		double curAppearM;
 		double curCirc;

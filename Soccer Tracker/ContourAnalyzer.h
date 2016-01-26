@@ -37,16 +37,20 @@ class ContourAnalyzer {
 		}
 
 		//=========================================================================================
-		void process (const Mat& binMask, vector<Rect>& players, vector<Point>& ball) {
+		void process (const Mat& binMask, vector<Rect>& players, vector<Point>& ball, Mat frame, int TID) {
 			vector<vector<Point>> contours;
 			findContours(binMask, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
-			//findContours(image, contours, CV_RETR_LIST, CV_CHAIN_APPROX_NONE);
 
 			vector<vector<Point>> players_cand, ball_cand;
 			filterAndSortRoi_Geom(contours, players_cand, ball_cand);
 			
-			//drawContours(frame, players_cand, -1, CV_RGB(255, 0, 0), 4);
-			//drawContours(frame, ball_cand, -1, CV_RGB(0, 0, 255), 4);
+			/*if (TID == 2) {
+				drawContours(frame, players_cand, -1, CV_RGB(255, 0, 0), 4);
+				drawContours(frame, ball_cand, -1, CV_RGB(0, 0, 255), 4);
+				namedWindow("L", CV_WINDOW_AUTOSIZE);
+				imshow("L", frame);
+				waitKey(0);
+			}*/
 			
 			vector<vector<Point>>::const_iterator it = players_cand.begin();
 			while (it != players_cand.end()) {
@@ -64,10 +68,14 @@ class ContourAnalyzer {
 
 		//=========================================================================================
 		void filterAndSortRoi_Geom (vector<vector<Point>>& roi, vector<vector<Point>>& player, vector<vector<Point>>& ball) {
+			
 			int pxExpectedPlayerSize[2] = {int(expectedPlayerSize[0] * fSize.y), int(expectedPlayerSize[1] * fSize.x)};
 			int pxExpectedBallSize[2] = {int(expectedBallSize[0] * fSize.y), int(expectedBallSize[1] * fSize.x)};
+			
 			vector<vector<Point>>::const_iterator it = roi.begin();
+
 			while (it != roi.end()) {
+
 				Rect boundRect = boundingRect(*it);
 				double area = contourArea(*it);
 				int perimeter = int(it->size());
@@ -79,7 +87,9 @@ class ContourAnalyzer {
 
 				if (	(boundRect.height > pxExpectedPlayerSize[0]) && (boundRect.height < pxExpectedPlayerSize[1]) &&
 						(boundRect.height > boundRect.width) && (area > 0.3 * double(boundRect.area()))		) {
+
 					player.push_back(*it);
+
 				} else if (	(boundRect.height > pxExpectedBallSize[0]) && (boundRect.height < pxExpectedBallSize[1]) &&
 							(boundRect.height < 2 * boundRect.width) && (boundRect.width < 3 * boundRect.height) &&
 							(area > 0.2 * double(boundRect.area())) && (roundness > 0.4)		) {

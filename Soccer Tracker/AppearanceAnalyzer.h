@@ -78,7 +78,7 @@ class AppearanceAnalyzer {
 		}
 
 		//=========================================================================================
-		void getMatches (BallCandidate* cand, int dotsCnt, vector<Point>& points, vector<double>& values) {
+		void getMatches (BallCandidate* cand, int dotsCnt, vector<Point>& points, vector<double>& values, int TID = 99) {
 
 			// Set limits
 			Rect bounds(0, 0, frame.cols, frame.rows);
@@ -86,22 +86,22 @@ class AppearanceAnalyzer {
 			points.clear();
 			values.clear();
 
-			// limit to valid space
+			// Define search zone
+			Mat crop;
 			cand->curRect = cand->curRect & bounds;
-	
-			Mat crop = frame(cand->curRect);
-			//Mat temp = crop.clone();
-			Mat temp = crop;
+			crop		  = frame(cand->curRect);			
 
-			// Dunno what this is for
+			//Mat temp = crop.clone(); // Clone
+			Mat temp = crop;           // Reference
+
+			// Lol
 			Mat RA_crop = restrictedArea(cand->curRect);
 
 			// ---------- choose appropriate template ----------
-			int templIdx = (cand->curCrd.y - 1) / eachTemplStripeH;
-			
+			int templIdx = (cand->curCrd.y - 1) / eachTemplStripeH;			
 			Mat ballTempl = ballTempls[templIdx];
-
 			cand->curTemplSize = ballTempl.rows;
+
 			// ----------
 			if (crop.rows < ballTempl.rows || crop.cols < ballTempl.cols) 
 			{
@@ -126,12 +126,13 @@ class AppearanceAnalyzer {
 			double minVal, maxVal;
 			Point minLoc, maxLoc;
 
-			// Finds the coordinate with the highest CC score
+			// Finds the coordinate with the highest CC score.. Task -> Mask
 			for (int i = 0; i < dotsCnt; i++) 
 			{
 				minMaxLoc(corrMtrx, &minVal, &maxVal, &minLoc, &maxLoc, Mat());
+				//if(TID == 0) circle(corrMtrx, maxLoc, 1, CV_RGB(0, 0, 0));
 				corrMtrx.at<float>(maxLoc) = -2.0;
-				maxLoc += Point(ballTempl.cols/2, ballTempl.rows/2) + cand->LU_Point;
+				maxLoc = maxLoc + cand->curRect.tl() + Point(ballTempl.cols / 2, ballTempl.rows / 2);
 				points.push_back(maxLoc);
 				values.push_back(maxVal);
 			}
@@ -139,6 +140,12 @@ class AppearanceAnalyzer {
 			if (values.size() == 0 || points.size() == 0) {
 				int x = 0;
 			}
+
+			/*if (TID == 3) {
+				namedWindow("L", CV_WINDOW_NORMAL); 
+				imshow("L", corrMtrx); 
+				waitKey(1); 
+			}*/
 		}
 
 		//=========================================================================================

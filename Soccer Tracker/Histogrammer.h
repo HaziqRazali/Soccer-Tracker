@@ -312,6 +312,7 @@ class Histogrammer {
 
 		//=========================================================================================
 		static Mat backProj (Mat& src, MatND& hist, int channel, bool treshold = false) {
+			
 			const float* ranges[1];
 			float hrangers[2] = {0.0, 255.0};
 			ranges[0] = hrangers;
