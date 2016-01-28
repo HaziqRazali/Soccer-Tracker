@@ -50,17 +50,18 @@ struct ProjCandidate {
 
 	// Camera Info _____________________________________________________________
 	int cameraID;					  // Camera ID
-	Point3d camCoords;				  // 3D camera coordinates (meters)
+	Point3d camCoords;				  // 3D camera coordinates in meters
 	Mat homography;					  // Camera homography matrix
 	
 	// Ball Info _____________________________________________________________
 	int ID;						      // Ball ID  
 
-	vector<Point2f> coords, coordsKF; // 2D projected coordinates (pixels)
-	vector<Point2f> coords_meters;    // 2D projected coordinates (meters)
+	vector<Point2f> coords, coordsKF; // 2D projected coordinates
+	vector<Point2f> coords_meters;    // 2D projected coordinates in meters
+	Point coords_pred;			      // 2D projected predicted coordinates
 	vector<Point3d> coords3D;		  // 3D coordinates of Ball	in meters	 [ multiple objects will store the same coordinates ]
 
-	pair<Point,int> other_coord;	  // <2D unprojected coordinates of ball, wrt. ID of opposite camera> Not in use
+	pair<Point,int> other_coord;	  // <2D unprojected coordinates of ball, wrt. ID of opposite camera>
 	bool isRealBall;                  // True Positive
 	
 	// Ground Truth _____________________________________________________________
@@ -82,7 +83,7 @@ struct ProjCandidate {
 	}
 
 	//=============================================================================================
-	void update (TrackInfo& ti, int frameCnt, bool flipV) {
+	void update (TrackInfo& ti, int frameCnt, bool flipH) {
 
 		vector<Point2f> p_orig = vector<Point2f>(1);
 		vector<Point2f> p_proj = vector<Point2f>(1);
@@ -101,7 +102,7 @@ struct ProjCandidate {
 		p_orig[0].y = p_orig[0].y * 2;
 
 		// If vertical flip
-		if (flipV) p_orig[0].x = 1920 - p_orig[0].x;
+		if (flipH) p_orig[0].x = 1920 - p_orig[0].x;
 
 		// Projection function
 		perspectiveTransform(p_orig, p_proj, homography);
@@ -115,9 +116,24 @@ struct ProjCandidate {
 		coords.push_back(_coord);
 		coordsKF.push_back(_coordsKF);
 
-		// Push back coordinate (meters)
+		// Push back coordinate (convert pixel to meters)
 		coords_meters.push_back(Point2f(_coordsKF.x * 0.05464, _coordsKF.y * 0.06291));
 
+		/********************************************************************************
+				Projects the predicted 2D coordinates of mainCandidate ( frame t + 1 )
+		*********************************************************************************/
+		
+		p_orig[0] = ti.predCoord;
+
+		// Upscale coordinates for projection onto top View ( 1920 x 1080 )
+		p_orig[0].x = p_orig[0].x * 2;
+		p_orig[0].y = p_orig[0].y * 2;
+
+		// Projection function
+		perspectiveTransform(p_orig, p_proj, homography);
+
+		_coord = p_proj[0];
+		coords_pred = _coord;
 
 		/********************************************************************************
 						Projects the Ground Truth coordinates ( frame t )
@@ -145,6 +161,7 @@ struct ProjCandidate {
 		//trackRatio = ti.trackRatio;
 		bounds.push_back(_bound);
 		frames.push_back(frameCnt);
+
 	}
 
 	//=============================================================================================
@@ -183,12 +200,9 @@ class MultiCameraTracker {
 		Point3d GTfinalPoint3D;
 
 		Mat planeTrajectory;
-		Point3d velocity_ms;
+		Point3d velocity;
 		float landingTime;
 		vector<Point3d> estimatedTrajectory;
-
-		// Debug
-		Point3d landingPos;
 
 		//_____________________________________________________________________________________________
 	public:
@@ -294,20 +308,14 @@ class MultiCameraTracker {
 		//=========================================================================================
 		void process () {
 			
-			try
-			{
-				// True positive identification
-				identifyTruePositive();
+			// True positive identification
+			identifyTruePositive();
 				
-				// 3D estimation
-				compute3D_Coords();
+			// 3D estimation
+			compute3D_Coords();
 				
-				// generateCameraTrajectory();
-
-				// Camera handoff for frame t + 1
-				//cameraHandoff();
-				
-			}	catch (...) { cout << "Error at process"; waitKey(0); }
+			// Camera handoff for frame t + 1
+			//cameraHandoff();
 
 		}
 
@@ -336,6 +344,8 @@ class MultiCameraTracker {
 
 				circle(img, Point(x, y), 5, Scalar(0, 0, 255));
 			}
+
+			//circle(img, Point(0, 0), 300, (0, 0, 0));
 
 			//Display coordinates of true positive on the field model
 			for (auto real : getTruePositives())
@@ -452,7 +462,7 @@ class MultiCameraTracker {
 			{
 				// Destroy planeTrajectory
 				planeTrajectory = Mat();
-				velocity_ms = Point3d();
+				//velocity = Point3d();
 
 				Point2f p1 = *(tempBall[0]->coords_meters.end() - 1);
 				Point2f p2 = *(tempBall[1]->coords_meters.end() - 1);
@@ -478,7 +488,7 @@ class MultiCameraTracker {
 					planeTrajectory = formPlane(tempBall[0]->coords3D);
 
 					// Kinematics analysis
-					establishTrajectory(tempBall[0]->coords3D);
+					//establishTrajectory(tempBall[0]->coords3D);
 				}
 
 				// Estimate 3D coordinates if plane exists
@@ -523,28 +533,18 @@ class MultiCameraTracker {
 		//=========================================================================================
 		void establishTrajectory(vector<Point3d> coords) {
 
-			// At home
-			// Triangulate ground truth manually and see if its equal to current and prev
-
 			// Position of ball in meters
 			Point3d currentPos	= *(coords.end() - 1);
 			Point3d prevPos		= *(coords.end() - 2);
 
 			// Ball velocity m/f
-			Point3d velocity_mf = currentPos - prevPos;
+			velocity = currentPos - prevPos;
 			
 			// Ball velocity m/s
-			velocity_ms = velocity_mf * 25;
-
-			//cout << currentPos << " - " << prevPos << endl;
-			cout << "Vel " << velocity_ms << endl;
+			velocity = velocity * 25;
 
 			// Landing time in seconds
-			landingTime = abs(2 * velocity_ms.z / 9.81);
-			cout << "landtime " << landingTime << endl;
-
-			landingPos = Point3d(velocity_ms.x * landingTime + currentPos.x, velocity_ms.y * (-landingTime) + currentPos.y, 0);
-			cout << "landpos  " << landingPos << endl;
+			landingTime = abs(2 * velocity.z / 9.81); //landingTime = abs(4.9 / velocity.z); find out where I initially got this
 			
 			// Landing time in frames
 			int landingTime_f = landingTime * 25;
@@ -552,21 +552,18 @@ class MultiCameraTracker {
 			// Establish trajectory in pixels
 			estimatedTrajectory = vector<Point3d>();
 
-			// Task -> Check here Ball velocity p/f
-			velocity_mf.x = velocity_mf.x * 18.3;
-			velocity_mf.y = velocity_mf.y * 15.9;
+			// Ball velocity p/f
+			velocity.x = velocity.x * 18.3 / 25;
+			velocity.y = velocity.y * 15.9 / 25;
 
 			for (int t = 0; t < landingTime_f; t++)
 			{
-				float x = velocity_mf.x * t + currentPos.x * 18.3;
-				float y = velocity_mf.y * t + currentPos.y * 15.9;
-				float z = velocity_mf.z * t - 0.00785 * pow(t, 2);
+				float x = velocity.x * t + currentPos.x * 18.3;
+				float y = velocity.y * t + currentPos.y * 15.9;
+				float z = velocity.z * t - 0.00785 * pow(t,2);
 
-				cout << x << " " << y << " " << z << endl;
 				estimatedTrajectory.push_back(Point3d(x, y, z));
 			}
-
-			/*cout << landingTime_f << endl;*/
 		}
 
 		//=========================================================================================
@@ -582,9 +579,6 @@ class MultiCameraTracker {
 
 		//=========================================================================================
 		inline void drawPoint (Mat& image, ProjCandidate* cand, int rad = 1) {
-
-			/*for (int i = 0; i < cand->coords3D.size(); i++)
-				circle(image, Point(cand->coords3D[i].x * 18.3, cand->coords3D[i].y * 15.9), rad, colors[cand->cameraID], 1, CV_AA);*/
 
 			circle(image, cand->getLastPoint(), rad, colors[cand->cameraID], 1, CV_AA);
 			
@@ -628,11 +622,6 @@ class MultiCameraTracker {
 		//=========================================================================================
 		void identifyTruePositive () {
 
-			/**********************************************************************
-				This function identifies the true positive by utilizing the
-				Epipolar constraints through triangulation.			
-			***********************************************************************/
-
 			// return if no detections
 			if (currCandidates.size() <= 1) return;
 
@@ -640,6 +629,10 @@ class MultiCameraTracker {
 			ProjCandidate *resCand1 = NULL, *resCand2 = NULL;
 
 			// Compute pair-wise distance through triangulation
+
+			/***************************************************
+							 Triangulation
+			****************************************************/
 			for (unsigned i = 0; i < currCandidates.size() - 1; i++)
 			{
 				for (unsigned j = i + 1; j < currCandidates.size(); j++)
@@ -675,8 +668,6 @@ class MultiCameraTracker {
 
 		//	Rect boundary = Rect(0, 0, 960, 540);
 
-		//	try
-		//	{
 		//		// Initialize temporary container
 		//		vector<int> cameraID;
 		//		vector<Camera*> tempCameraId;
@@ -719,8 +710,7 @@ class MultiCameraTracker {
 
 		//		for (auto cc : currCandidates)	if (cc->isRealBall)	cc->cameraVisible = tempCameraId;
 
-		//	}
-		//	catch (...) { cout << " Error at Prepare Cameras"; waitKey(0); }
+		//
 
 		//}
 
@@ -848,6 +838,15 @@ class MultiCameraTracker {
 			for (auto cc : currCandidates)	if (cc->isRealBall)	Ball.push_back(cc);
 
 			return Ball;
+
+			//// Update Ball if new ID
+			//for (int i = 0; i < currCandidates.size(); i++)
+			//{
+			//	if (currCandidates[i]->isRealBall)
+			//	{
+			//		Ball.push_back(currCandidates[i]);
+			//	}
+			//}
 		}
 
 		//=========================================================================================
@@ -891,7 +890,6 @@ class MultiCameraTracker {
 			// Equation of the plane ax + by + cz - constant = 0... Task -> Mean / subset of RANSAC ?
 			Mat Plane = (Mat_<float>(1, 4) << N.x, N.y, 0, -(N.x * A.x + N.y * A.y));
 
-			//cout << Plane << endl;
 			return Plane;
 		}
 

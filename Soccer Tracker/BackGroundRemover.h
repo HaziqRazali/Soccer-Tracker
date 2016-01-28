@@ -111,7 +111,6 @@ class BackGroundRemover {
 
 			MatND smoothedHistG = Histogrammer::filterHist(histG);
 			MatND histMask = Histogrammer::getHistMask(smoothedHistG);
-
 			multiply(histG, histMask, histG);
 			binMask = Histogrammer::backProj(frame, histG, 1, true);
 

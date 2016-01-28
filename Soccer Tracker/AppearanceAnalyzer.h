@@ -78,7 +78,7 @@ class AppearanceAnalyzer {
 		}
 
 		//=========================================================================================
-		void getMatches (BallCandidate* cand, int dotsCnt, vector<Point>& points, vector<double>& values, int TID = 99) {
+		void getMatches (BallCandidate* cand, int dotsCnt, vector<Point>& points, vector<double>& values) {
 
 			// Set limits
 			Rect bounds(0, 0, frame.cols, frame.rows);
@@ -86,22 +86,22 @@ class AppearanceAnalyzer {
 			points.clear();
 			values.clear();
 
-			// Define search zone
-			Mat crop;
+			// limit to valid space
 			cand->curRect = cand->curRect & bounds;
-			crop		  = frame(cand->curRect);			
+	
+			Mat crop = frame(cand->curRect);
+			//Mat temp = crop.clone();
+			Mat temp = crop;
 
-			//Mat temp = crop.clone(); // Clone
-			Mat temp = crop;           // Reference
-
-			// Lol
+			// Dunno what this is for
 			Mat RA_crop = restrictedArea(cand->curRect);
 
 			// ---------- choose appropriate template ----------
-			int templIdx = (cand->curCrd.y - 1) / eachTemplStripeH;			
+			int templIdx = (cand->curCrd.y - 1) / eachTemplStripeH;
+			
 			Mat ballTempl = ballTempls[templIdx];
-			cand->curTemplSize = ballTempl.rows;
 
+			cand->curTemplSize = ballTempl.rows;
 			// ----------
 			if (crop.rows < ballTempl.rows || crop.cols < ballTempl.cols) 
 			{
@@ -126,13 +126,12 @@ class AppearanceAnalyzer {
 			double minVal, maxVal;
 			Point minLoc, maxLoc;
 
-			// Finds the coordinate with the highest CC score.. Task -> Mask
+			// Finds the coordinate with the highest CC score
 			for (int i = 0; i < dotsCnt; i++) 
 			{
 				minMaxLoc(corrMtrx, &minVal, &maxVal, &minLoc, &maxLoc, Mat());
-				//if(TID == 0) circle(corrMtrx, maxLoc, 1, CV_RGB(0, 0, 0));
 				corrMtrx.at<float>(maxLoc) = -2.0;
-				maxLoc = maxLoc + cand->curRect.tl() + Point(ballTempl.cols / 2, ballTempl.rows / 2);
+				maxLoc += Point(ballTempl.cols/2, ballTempl.rows/2) + cand->LU_Point;
 				points.push_back(maxLoc);
 				values.push_back(maxVal);
 			}
@@ -140,12 +139,6 @@ class AppearanceAnalyzer {
 			if (values.size() == 0 || points.size() == 0) {
 				int x = 0;
 			}
-
-			/*if (TID == 3) {
-				namedWindow("L", CV_WINDOW_NORMAL); 
-				imshow("L", corrMtrx); 
-				waitKey(1); 
-			}*/
 		}
 
 		//=========================================================================================
@@ -190,8 +183,6 @@ class AppearanceAnalyzer {
 				dist.push_back(norm(featureVector, referee, NORM_L2));
 
 				return std::min_element(dist.begin(), dist.end()) - dist.begin();
-
-				//cout << min_index << endl;
 
 				//// Classify
 				//float distToA		= norm(featureVector, teamA, NORM_L2);

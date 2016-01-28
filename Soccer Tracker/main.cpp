@@ -10,28 +10,24 @@ TTD
 [✓]	Compile video datasets
 [✓]	3D Localization
 [✓]	Multiple and Single Camera Height Estimation
-[]	Physics
+[✓]	Camera Coordinates Extraction
+[✓]	Kick off
 []	Camera Handoff
-[]	Camera Coordinates Extraction
+[]	Physics
 
 [✓]	Results and Conclusion
 
-Others
-[]	Ball recovery when it goes 'out' of field
-[]  Correlation mask
-[]  Write about 'administration' in report ie. placement of camera, conversion of pixel (modelView) to meters
-[]  MOG
-
-Team identification
-
+Things to improve
+[]  Background Subtraction (MOG ?)
+[]  Segmentation
+[]  Identification
 
 Camera Handoff
 [✓] Revert to original
 [✓] Internal Height Estimation will form plane
 [✓] Find out how to store Mat planeTrajectory
 [✓] Plane will remain until double detections are found
-- Physics will establish trajectory
-- Determine landing spot for fun
+[] State Transition
 - All detections will be checked against plane
 
 */
@@ -189,32 +185,6 @@ int main() {
 	CameraHandler camHandler(configurator, videoReader);
 	MultiCameraTracker mcTracker;
 
-	
-	//[Col, Row]
-	//Camera 3 coord	= [960, 1080]
-	//		   Ball = [578, 64] ->[1054, 77]
-	//				= [559, 57] ->[1038, 45]
-	//				= [540, 50] ->[1022, 12]
-
-	//[Col, Row]
-	//Camera 4 coord	= [960, 0]
-	//		   Ball = [295, 386] ->[1051, 171]
-	//				= [327, 373] ->[1036, 191]
-	//				= [357, 361] ->[1022, 210]
-	//
-
-	////Debug - Need to project ground truth
-	//pair<double, Point3d> V1 = mcTracker.Triangulate(Point3d(960, 1080, 140), Point3d(1054, 77, 0), Point3d(960, 0, 140), Point3d(1051, 171, 0));
-	//pair<double, Point3d> V2 = mcTracker.Triangulate(Point3d(960, 1080, 140), Point3d(1038, 45, 0), Point3d(960, 0, 140), Point3d(1036, 191, 0));
-	//pair<double, Point3d> V3 = mcTracker.Triangulate(Point3d(960, 1080, 140), Point3d(1022, 12, 0), Point3d(960, 0, 140), Point3d(1022, 210, 0));
-	////cout << V1.second << endl << V2.second << endl << V3.second << endl;
-
-	//vector<Point3d> V = { V1.second, V2.second, V3.second };
-	//Mat plane = mcTracker.formPlane(V);
-	//cout << plane << endl;
-
-	//return 0;
-
 	clock_t tic = clock();
 
 	// Initialize camera + labels
@@ -229,15 +199,15 @@ int main() {
 
 	scalePreview = 1.0 / 3; // preview size will be 640 x 360
 
-	// Origin is at top left
-	camHandler.addCamera(1, Point(1280, 540), scalePreview, Point3d(87.56, 67.928 - (- 34.52), 60.69));	// Original: 0, 540	, Point3d(1620, 1080, 140)
-	camHandler.addCamera(2, Point(1280, 180), scalePreview, Point3d(87.69, 67.928 - 103.14   , 60.62));	// Original: 640, 540 , Point3d(1620, 0, 140)	
+	// Camera Coordinates are not at the extreme corners. Origin is at top left
+	camHandler.addCamera(1, Point(1280, 540), scalePreview, Point3d(87.56, 67.928 + 34.52, 60.69));	// Original: 0, 540		
+	camHandler.addCamera(2, Point(1280, 180), scalePreview, Point3d(87.69, 67.928 - 103.14, 60.62));		// Original: 640, 540
 
-	camHandler.addCamera(3, Point(640, 540),  scalePreview, Point3d(53.15, 67.928 - (-34.13) , 56.51));	// Original: 1280, 540 , Point3d(960, 1080, 140)
-	camHandler.addCamera(4, Point(640, 180),  scalePreview, Point3d(52.37, 67.928 - 101.78   , 57.93));	// Original: 0, 180	, Point3d(960, 0, 140)	
+	camHandler.addCamera(3, Point(640, 540), scalePreview, Point3d(53.15, 67.928 + 34.13, 56.51));	// Original: 1280, 540
+	camHandler.addCamera(4, Point(640, 180), scalePreview, Point3d(52.37, 67.928 - 101.78, 57.93));		// Original: 0, 180		
 
-	camHandler.addCamera(5, Point(0, 540),    scalePreview, Point3d(27.84, 67.928 - (-33.97) , 59.50));	// Original: 640, 180 , Point3d(300, 1080, 140)
-	camHandler.addCamera(6, Point(0, 180),    scalePreview, Point3d(27.84, 67.928 - 102.09   , 58.83));	// Original: 1280, 180 , , Point3d(300, 0, 140)
+	camHandler.addCamera(5, Point(0, 540), scalePreview, Point3d(27.84, 67.928 + 33.97, 59.50));		// Original: 640, 180
+	camHandler.addCamera(6, Point(0, 180), scalePreview, Point3d(27.84, 67.928 - 102.09, 58.83));			// Original: 1280, 180
 
 	camHandler.updateFSize();
 	vector<Camera*> allCameras = camHandler.getCameras();
@@ -293,7 +263,7 @@ int main() {
 			ContourAnalyzer cAnalyzer;
 
 			Tracker tracker;
-			tracker.initialize();
+			tracker.initialize(TID);
 			tracker.setBallTempls(camera->ballTemplates);
 			tracker.setPerspectiveRatio(camera->perspectiveRatio);
 			tracker.setGivenTrajectory(givenTrajectories[TID]);
@@ -356,7 +326,7 @@ int main() {
 				vector<Rect> players_cand;
 				vector<Point> ball_cand;
 
-				cAnalyzer.process(mask, players_cand, ball_cand, frame, TID);
+				cAnalyzer.process(mask, players_cand, ball_cand);
 				// ========== wait for permission to start tracking ==========
 				bool _flg = true;
 
@@ -541,6 +511,100 @@ int main() {
 
 	system("PAUSE");
 	return 0;
+}
+
+void testFunc2() {
+
+
+
+}
+
+void testFunc() {
+
+	BackGroundRemover remover(500, 256, 5, false);
+
+	int hbins = 18;
+	int channels[] = { 0 };
+	int histSize[] = { hbins };
+	float hranges[] = { 0, 180 };
+	const float* ranges[] = { hranges };
+
+	Mat patch_HSV_A, patch_HSV_B, patch_HSV_C;
+	Mat imgA_mask, imgB_mask, imgC_mask;
+	MatND HistA, HistB, HistC;
+
+	// Read in RGB
+	Mat imgA = imread("White1.png");
+	Mat imgB = imread("White3.png");
+	Mat imgC = imread("Blue1.png");
+
+	// Convert to HSV
+	cvtColor(imgA, patch_HSV_A, CV_BGR2HSV);
+	cvtColor(imgB, patch_HSV_B, CV_BGR2HSV);
+	cvtColor(imgC, patch_HSV_C, CV_BGR2HSV);
+
+	// Generate mask ( remove green pixels )
+	remover.HistMethod(imgA, imgA_mask);
+	remover.HistMethod(imgB, imgB_mask);
+	remover.HistMethod(imgC, imgC_mask);
+
+	//// Extract Hue
+	//vector<Mat> hsv_planes;
+	//split(patch_HSV_A, hsv_planes);
+
+	//// Remove green pixels from HUE
+	//Mat mask = imgA_mask / 255;
+	//cout << mask;
+	//multiply(hsv_planes[0], mask, hsv_planes[0]);
+
+	namedWindow("Player A", CV_WINDOW_NORMAL); imshow("Player A", imgA);	//namedWindow("Mask A", CV_WINDOW_NORMAL);  imshow("Mask A", imgA_mask);
+	namedWindow("Player B", CV_WINDOW_NORMAL); imshow("Player B", imgB);	//imshow("Mask B", imgB_mask);
+	namedWindow("Player C", CV_WINDOW_NORMAL); imshow("Player C", imgC);	imshow("Mask C", imgC_mask);
+
+	// Calculate histogram and normalize
+	calcHist(&patch_HSV_A, 1, channels, imgA_mask, HistA, 1, histSize, ranges, true, false);
+	normalize(HistA, HistA, 0, 255, CV_MINMAX);
+
+	calcHist(&patch_HSV_B, 1, channels, imgB_mask, HistB, 1, histSize, ranges, true, false);
+	normalize(HistB, HistB, 0, 255, CV_MINMAX);
+
+	calcHist(&patch_HSV_C, 1, channels, imgC_mask, HistC, 1, histSize, ranges, true, false);
+	normalize(HistC, HistC, 0, 255, CV_MINMAX);
+
+	// COMPARE SIMILARITY
+	cout << "A vs B = " << compareHist(HistA, HistB, CV_COMP_BHATTACHARYYA) << endl;
+	cout << "A vs C = " << compareHist(HistA, HistC, CV_COMP_BHATTACHARYYA) << endl;
+	cout << "B vs C = " << compareHist(HistB, HistC, CV_COMP_BHATTACHARYYA) << endl;
+	
+	//Mat for drawing 
+	Mat histimg = Mat::zeros(200, 320, CV_8UC3);
+	histimg = Scalar::all(0);
+	int binW = histimg.cols / hbins;
+	Mat buf(1, hbins, CV_8UC3);
+
+	//Set RGB color
+	for (int i = 0; i < hbins; i++)	buf.at< Vec3b>(i) = Vec3b(saturate_cast< uchar>(i*180. / hbins), 255, 255);
+
+	cvtColor(buf, buf, CV_HSV2BGR);
+
+	//drawing routine
+	for (int i = 0; i < hbins; i++)
+	{
+		// UPDATE HERE !
+		int val = saturate_cast< int>(HistA.at< float>(i)*histimg.rows / 255);
+
+		rectangle(histimg, Point(i*binW, histimg.rows),
+			Point((i + 1)*binW, histimg.rows - val),
+			Scalar(buf.at< Vec3b>(i)), -1, 8);
+		int r, g, b;
+		b = buf.at< Vec3b>(i)[0];
+		g = buf.at< Vec3b>(i)[1];
+		r = buf.at< Vec3b>(i)[2];
+
+		//show bin and RGB value
+		//printf("[%d] r=%d, g=%d, b=%d , bins = %d \n", i, r, g, b, val);
+	}
+	imshow("Histogram", histimg);
 }
 
 // ********** example of code to save backGrColor to file **********

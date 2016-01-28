@@ -21,7 +21,7 @@ struct TrackInfo {
 
 		int ballCandID;
 		Rect rect;
-		Point coord, GTcoord; // measured coordinate, ground truth coordinate
+		Point coord, predCoord, GTcoord; // measured coordinate, predicted coordinate, ground truth coordinate
 		bool allowTracking;
 		bool current;
 
@@ -29,11 +29,10 @@ struct TrackInfo {
 
 
 		//=========================================================================================
-		void set (int ballID = -1, Rect rect = Rect(), Point coord = Point(-1,-1), Point GTcoord = Point(-1, -1), vector<pair<Point,Point>> results = vector<pair<Point,Point>>()) {
-			
-			// Ball
+		void set (int ballID = -1, Rect rect = Rect(), Point coord = Point(-1,-1), Point predCoord = Point(), Point GTcoord = Point(-1, -1), vector<pair<Point,Point>> results = vector<pair<Point,Point>>()) {
 			this->ballCandID = ballID;
 			this->coord = coord;
+			this->predCoord = predCoord;
 			this->rect = rect;
 
 			this->GTcoord = GTcoord;
