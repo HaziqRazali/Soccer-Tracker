@@ -78,7 +78,7 @@ class AppearanceAnalyzer {
 		}
 
 		//=========================================================================================
-		void getMatches (BallCandidate* cand, int dotsCnt, vector<Point>& points, vector<double>& values) {
+		void getMatches (BallCandidate* cand, int dotsCnt, vector<Point>& points, vector<double>& values, int TID = 0) {
 
 			// Set limits
 			Rect bounds(0, 0, frame.cols, frame.rows);
@@ -93,7 +93,7 @@ class AppearanceAnalyzer {
 			//Mat temp = crop.clone();
 			Mat temp = crop;
 
-			// Dunno what this is for
+			// Gay condition
 			Mat RA_crop = restrictedArea(cand->curRect);
 
 			// ---------- choose appropriate template ----------
@@ -108,12 +108,13 @@ class AppearanceAnalyzer {
 				return;
 			}
 
-			Mat restrictedMask = cand->restrictedMask;
+			// Player mask
+			/*Mat restrictedMask = cand->restrictedMask;
 
 			if (!restrictedMask.empty()) 
 			{
 				multiply(temp, restrictedMask, temp);
-			}
+			}*/
 
 			Mat cropGr, corrMtrx, cropCVar;
 			matchTemplate(temp, ballTempl, corrMtrx, matchMethod);
@@ -125,6 +126,15 @@ class AppearanceAnalyzer {
 
 			double minVal, maxVal;
 			Point minLoc, maxLoc;
+
+			/*int count = 0;
+			for (int i = 0; i < corrMtrx.rows; i++)
+				for (int j = 0; j < corrMtrx.cols; j++)
+				{
+					if (corrMtrx.at<float>(i, j) > 0.94) count++;
+				}
+
+			if(TID == 0) cout << count << endl;*/
 
 			// Finds the coordinate with the highest CC score
 			for (int i = 0; i < dotsCnt; i++) 

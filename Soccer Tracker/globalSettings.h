@@ -23,7 +23,7 @@ const int gui_modelH = 652, gui_modelW = 948;
 //#define WRITE_VIDEO // save video to disk
 #define DISPLAY_GROUND_TRUTH // display ground truth
 #define NOT_FROM_THE_BEGINING // begin tracking from frame 361 (where the groundtruth starts)
-#define START_FRAME 300
+#define START_FRAME 300 // 650 1300 2400
 #define PLAYERS_KF // apply Kalman Filtering for players
 #define WINDOW_PERSPECTIVE // take distance to the camera into the considiration
 

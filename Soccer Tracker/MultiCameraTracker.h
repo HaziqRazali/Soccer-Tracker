@@ -120,7 +120,7 @@ struct ProjCandidate {
 		coords_meters.push_back(Point2f(_coordsKF.x * 0.05464, _coordsKF.y * 0.06291));
 
 		/********************************************************************************
-				Projects the predicted 2D coordinates of mainCandidate ( frame t + 1 )
+				Projects the predicted 2D coordinates of mainCandidate ( frame t + 1 ) Not in use
 		*********************************************************************************/
 		
 		p_orig[0] = ti.predCoord;
@@ -196,13 +196,26 @@ class MultiCameraTracker {
 		vector<ProjCandidate*> currCandidates;
 		vector<vector<pair<Point,Point>>> result_final = vector<vector<pair<Point,Point>>>(6);
 
+		vector<Point3d> finalCoords;
+
 		Point3d finalPoint3D;
 		Point3d GTfinalPoint3D;
 
+		/*********************************************************
+							Physics
+		**********************************************************/
 		Mat planeTrajectory;
 		Point3d velocity;
 		float landingTime;
 		vector<Point3d> estimatedTrajectory;
+
+		/*********************************************************
+							Object handoff
+		**********************************************************/
+		Rect transitRegion_A = Rect(Point(64, 0), Point(76, 68)); // Handover from 1-2
+		Rect transitRegion_B = Rect(Point(28, 0), Point(50, 68));   // Handover from 2-3 (40,68)
+				
+		int STATE = 0;
 
 		//_____________________________________________________________________________________________
 	public:
@@ -310,13 +323,40 @@ class MultiCameraTracker {
 			
 			// True positive identification
 			identifyTruePositive();
-				
+			
+			// Object handover
+			objectHandover();
+
 			// 3D estimation
 			compute3D_Coords();
 				
 			// Camera handoff for frame t + 1
 			//cameraHandoff();
 
+		}
+
+		void objectHandover() {
+
+			// Has the True Positive been located ?
+			for (auto cc : currCandidates) if (cc->isRealBall) return;
+			if (finalCoords.size() < 2) return;
+
+			// Direction of travel based on last known set of coordinates
+			double velX = (finalCoords.end() - 1)->x - (finalCoords.end() - 2)->x;
+
+			// Possible set of states the ball could be in
+			if (transitRegion_A.contains(Point(finalPoint3D.x, finalPoint3D.y)) && velX > 0) STATE = 1;
+			if (transitRegion_A.contains(Point(finalPoint3D.x, finalPoint3D.y)) && velX < 0) STATE = 3;
+
+			if (transitRegion_B.contains(Point(finalPoint3D.x, finalPoint3D.y)) && velX > 0) STATE = 3;
+			if (transitRegion_B.contains(Point(finalPoint3D.x, finalPoint3D.y)) && velX < 0) STATE = 5;
+
+			// loop through all currCandidates.
+			for (unsigned i = 0; i < currCandidates.size(); i++)
+			{
+				if (abs(currCandidates[i]->cameraID - STATE) <= 1) currCandidates[i]->isRealBall = true;
+			}
+			
 		}
 
 		//=========================================================================================
@@ -334,36 +374,36 @@ class MultiCameraTracker {
 				drawPoint(img, candidate, 10);
 
 				// Display Trajectory
-				drawTraceFiltered(img, candidate);
+				//drawTraceFiltered(img, candidate);
 			}
 
-			for (int i = 0; i < estimatedTrajectory.size(); i++)
+			/*for (int i = 0; i < estimatedTrajectory.size(); i++)
 			{
 				int x = estimatedTrajectory[i].x;
 				int y = estimatedTrajectory[i].y;
 
 				circle(img, Point(x, y), 5, Scalar(0, 0, 255));
-			}
+			}*/
 
 			//circle(img, Point(0, 0), 300, (0, 0, 0));
 
 			//Display coordinates of true positive on the field model
-			for (auto real : getTruePositives())
-			{
-				double x = (real->coords3D.end()-1)->x;
-				double y = (real->coords3D.end()-1)->y;
-				double z = (real->coords3D.end()-1)->z;
+			//for (auto real : getTruePositives())
+			//{
+			//	double x = (real->coords3D.end()-1)->x;
+			//	double y = (real->coords3D.end()-1)->y;
+			//	double z = (real->coords3D.end()-1)->z;
 
-				// Convert meters back to pixels for display
-				char coordinate[40];
-				Point position = Point(x / 0.05464 + 10, y / 0.06291 + 10);
+			//	// Convert meters back to pixels for display
+			//	char coordinate[40];
+			//	Point position = Point(x / 0.05464 + 10, y / 0.06291 + 10);
 
-				// Display coordinates of ball in meters
-				sprintf(coordinate, "%.0f %.0f %.0f", x, y, z);
-				putText(img, coordinate, position, CV_FONT_HERSHEY_COMPLEX_SMALL, 1, Scalar(0, 0, 0));
+			//	// Display coordinates of ball in meters
+			//	sprintf(coordinate, "%.0f %.0f %.0f", x, y, z);
+			//	putText(img, coordinate, position, CV_FONT_HERSHEY_COMPLEX_SMALL, 1, Scalar(0, 0, 0));
 
-				break;
-			}
+			//	break;
+			//}
 
 			// For visual debugging
 			/*for (auto real : getTruePositives())
@@ -382,6 +422,12 @@ class MultiCameraTracker {
 
 			// Save track Data
 			//saveTrackData();
+
+			/*char filen[40];
+			static int _count = 0;
+			sprintf(filen, "TopIm_%d.png", _count);
+			imwrite(filen, img);
+			_count++;*/
 
 			modelPreview = img;
 
@@ -469,9 +515,13 @@ class MultiCameraTracker {
 
 				finalPoint3D = Triangulate(tempBall[0]->camCoords, Point3d(p1.x, p1.y, 0), tempBall[1]->camCoords, Point3d(p2.x, p2.y, 0)).second;
 
-				// Transfer data back to object
-				for (auto cc : currCandidates) if (cc->isRealBall) cc->coords3D.push_back(finalPoint3D);
-					
+				// Transfer coordinates back to object if valid
+				if (finalPoint3D.x > 0 && finalPoint3D.y > 0 && finalPoint3D.x < 105 && finalPoint3D.y < 68)
+				{
+					for (auto cc : currCandidates) if (cc->isRealBall) cc->coords3D.push_back(finalPoint3D);
+					finalCoords.push_back(finalPoint3D);
+				}
+
 				return;
 			}
 
@@ -502,6 +552,13 @@ class MultiCameraTracker {
 						
 					// Estimate 3D coordinates
 					finalPoint3D = InternalHeightEstimation(camCoords, projBallCoords, planeTrajectory);
+					
+					// Transfer coordinates back to object if valid
+					if (finalPoint3D.x > 0 && finalPoint3D.y > 0 && finalPoint3D.x < 105 && finalPoint3D.y < 68)
+					{
+						for (auto cc : currCandidates) if (cc->isRealBall) cc->coords3D.push_back(finalPoint3D);
+						finalCoords.push_back(finalPoint3D);
+					}
 
 					// If finalPoint3D != 0, opposite camera will then predict its 2D position
 					/*for (int i = 0; i < tempBall[0]->cameraVisible.size(); i++)
@@ -521,10 +578,17 @@ class MultiCameraTracker {
 				}
 
 				// Height = 0 if all fails
-				else finalPoint3D = Point3d((tempBall[0]->coords_meters.end() - 1)->x, (tempBall[0]->coords_meters.end() - 1)->y, 0);
-
-				// Transfer data back to container
-				for (auto cc : currCandidates) if (cc->isRealBall) cc->coords3D.push_back(finalPoint3D);
+				else
+				{
+					finalPoint3D = Point3d((tempBall[0]->coords_meters.end() - 1)->x, (tempBall[0]->coords_meters.end() - 1)->y, 0);
+					
+					// Transfer coordinates back to object if valid
+					if (finalPoint3D.x > 0 && finalPoint3D.y > 0 && finalPoint3D.x < 105 && finalPoint3D.y < 68)
+					{
+						for (auto cc : currCandidates) if (cc->isRealBall) cc->coords3D.push_back(finalPoint3D);
+						finalCoords.push_back(finalPoint3D);
+					}
+				}
 			}				
 	
 
@@ -628,8 +692,6 @@ class MultiCameraTracker {
 			double minVal = numeric_limits<double>::max();
 			ProjCandidate *resCand1 = NULL, *resCand2 = NULL;
 
-			// Compute pair-wise distance through triangulation
-
 			/***************************************************
 							 Triangulation
 			****************************************************/
@@ -659,8 +721,6 @@ class MultiCameraTracker {
 				resCand1->isRealBall = true;
 				resCand2->isRealBall = true;
 			}
-			
-			// If pair-wise failed
 		}
 
 		//=========================================================================================

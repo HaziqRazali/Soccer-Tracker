@@ -48,6 +48,7 @@ class Tracker {
 		AccuracyMetric metric;
 
 		int count = 0;
+		Point lastBallLoc;
 	//_____________________________________________________________________________________________
 	public:
 
@@ -270,8 +271,10 @@ class Tracker {
 			drawTrajectory(frame, 2);
 			updateMetric(file);
 
+			#ifdef DISPLAY_GROUND_TRUTH
 			drawBallGroundTruth(frame, 5);
 			//drawDistance(frame);
+			#endif
 
 			curFrame++;
 		}
@@ -329,13 +332,13 @@ class Tracker {
 						// Correlate
 						vector<Point> matchPoints;
 						vector<double> matchProbs;
-						appearAnalyzer.getMatches(bc, 1, matchPoints, matchProbs);
+						appearAnalyzer.getMatches(bc, 1, matchPoints, matchProbs, TID);
 
 						Point nCrd = matchPoints[0];
 						double nProb = matchProbs[0];
 
 						// Ball found
-						if (nProb > M1_loose_threshold)
+						if (nProb > 0.955)
 						{
 							bc->curCrd = nCrd;
 							bc->curAppearM = nProb;
@@ -365,7 +368,7 @@ class Tracker {
 						// Correlate
 						vector<Point> matchPoints;
 						vector<double> matchProbs;
-						appearAnalyzer.getMatches(bc, 1, matchPoints, matchProbs);
+						appearAnalyzer.getMatches(bc, 1, matchPoints, matchProbs, TID);
 
 						Point nCrd = matchPoints[0];
 						double nProb = matchProbs[0];
@@ -399,7 +402,6 @@ class Tracker {
 
 			if (count == 1)
 			{
-
 				BallCandidate* bc = bCandidates[0];
 
 				/*****************************************************
@@ -423,7 +425,7 @@ class Tracker {
 						// Correlate
 						vector<Point> matchPoints;
 						vector<double> matchProbs;
-						appearAnalyzer.getMatches(bc, 1, matchPoints, matchProbs);
+						appearAnalyzer.getMatches(bc, 1, matchPoints, matchProbs, TID);
 
 						Point nCrd = matchPoints[0];
 						double nProb = matchProbs[0];
@@ -433,14 +435,23 @@ class Tracker {
 						{
 							bc->curCrd = nCrd;
 							bc->curAppearM = nProb;
-							bc->switchState(curFrame, BALL_STATE::ATTACHED_TO_PLAYER);
+							bc->switchState(curFrame, BALL_STATE::TRACKING);
 							bc->updateStep();
 
 							// Update candidate trajectory
 							mainCandidateTraj.push_back(bc->curCrd);
 
 							// Ball in play, deactivate counter
-							if (bc->curCrd.y < 440) return true; //this->count--;
+							if (bc->curCrd.y < 440)
+							{
+								// set window size to default
+								#ifdef WINDOW_PERSPECTIVE
+								bc->curRad = perspectiveRad(defRad, bc->curCrd);
+								#else
+								bc->curRad = defRad;
+								#endif // WINDOW_PERSPECTIVE
+								return true; //this->count--;
+							}
 						}
 
 						// Ball not found, assume at head
@@ -449,7 +460,7 @@ class Tracker {
 							Point pHead(pc->curRect.x + pc->curRect.width / 2, pc->curRect.tl().y);
 							bc->curCrd = pHead;
 							bc->curAppearM = nProb;
-							bc->switchState(curFrame, BALL_STATE::ATTACHED_TO_PLAYER);
+							bc->switchState(curFrame, BALL_STATE::TRACKING);
 							bc->updateStep();
 
 							mainCandidateTraj.push_back(bc->curCrd);
@@ -465,7 +476,7 @@ class Tracker {
 				// Correlate
 				vector<Point> matchPoints;
 				vector<double> matchProbs;
-				appearAnalyzer.getMatches(bc, 1, matchPoints, matchProbs);
+				appearAnalyzer.getMatches(bc, 1, matchPoints, matchProbs, TID);
 
 				Point nCrd = matchPoints[0];
 				double nProb = matchProbs[0];
@@ -475,7 +486,7 @@ class Tracker {
 				{
 					bc->curCrd = nCrd;
 					bc->curAppearM = nProb;
-					bc->switchState(curFrame, BALL_STATE::ATTACHED_TO_PLAYER);
+					bc->switchState(curFrame, BALL_STATE::TRACKING);
 					bc->updateStep();
 
 					// Update candidate trajectory
@@ -504,7 +515,13 @@ class Tracker {
 	
 			appearAnalyzer.setFrame(frame); 
 
-			if (TID == 3) cout << trackerState << endl;
+			for (auto b : Ball)
+			{
+				if (b->coords3D.size() != 0)
+				{
+					lastBallLoc = Point((b->coords3D.end() - 1)->x, (b->coords3D.end() - 1)->y);
+				}
+			}
 
 			switch (trackerState) {
 
@@ -517,16 +534,15 @@ class Tracker {
 
 					********************************************************************/
 					
-					// Decrement counter Task -> put after sideline search
 					if (!mainCandidateTraj.empty())
 					{
 						// Last location of ball
 						Point currentBallLocation = *(mainCandidateTraj.end() - 1);
 
-						// Ball out of play - Activate side-line search
-						if (currentBallLocation.y > 525 && count == 0) 
+						// Ball out of play - Activate side-line search /*currentBallLocation.y > 525*/
+						if ((TID == 3 && lastBallLoc.x > 35 && lastBallLoc.x < 45 && lastBallLoc.y < 3 && count == 0) || (TID == 0 && lastBallLoc.x > 90 && lastBallLoc.x < 98 && lastBallLoc.y > 66 && count == 0))
 						{
-							count = 2;
+							count = 2; // Active count for current thread
 							return;
 						}
 
@@ -594,7 +610,7 @@ class Tracker {
 					break;
 				//_____________________________________________________________
 				case TRACKER_STATE::BALL_FOUND : 
-					
+
 					// Count at 1, track ball at sideline
 					if (count == 1) 
 					{						
@@ -623,6 +639,10 @@ class Tracker {
 					break;
 			}
 
+			/*if (TID == 3)
+				for (int i = 0; i < newCandidates.size(); i++)
+					circle(frame, newCandidates[i], 20, CV_RGB(255, 0, 255));*/
+			
 			/*if (mainCandidate != NULL) 
 			{
 				mainCandidateTraj.push_back(mainCandidate->curCrd);
@@ -672,7 +692,7 @@ class Tracker {
 
 		//=========================================================================================
 		void ball_updateBallCandidate(BallCandidate* bc, Mat& frame = Mat(), int TID = 0, int count = 0) {
-			
+
 			switch (bc->getState()) {
 
 				//_____________________________________________________________
@@ -682,10 +702,12 @@ class Tracker {
 					vector<double> nearbyP_Dist;
 					vector<int> nearbyP_Idx;
 
-					// Find nearest player
+					/**********************************************************
+										Find Nearest Player
+					***********************************************************/
 					getNearestPlayersVctr(bc, nearbyP_Idx, nearbyP_Dist, 15.0);
 
-					// If player is too near to ball
+					// Locate nearest player
 					if (!nearbyP_Dist.empty()) 
 					{
 						auto nearest     = min_element(nearbyP_Dist.begin(), nearbyP_Dist.end());
@@ -696,15 +718,15 @@ class Tracker {
 						// Determine attach height of ball (bc->attachedHeight)
 						updateAttachedHeight(pRect, bc);
 
-						// Update attach height of ball to be at head / mid / feet
+						// Create large window
 						bc->curCrd = Point(pRect.x + pRect.width/2, pRect.y + int(bc->attachedHeight * pRect.height));
 						#ifdef WINDOW_PERSPECTIVE
 							bc->curRad = Point(pRect.width/2, pRect.height/2) + perspectiveRad(attachRad, bc->curCrd);
 						#else
 							bc->curRad = Point(pRect.width/2, pRect.height/2) + attachRad;
-						#endif // WINDOW_PERSPECTIVE
-
+						#endif
 						bc->fitFrame();
+
 						bc->curAppearM = 0.0;
 						bc->switchState(curFrame, BALL_STATE::ATTACHED_TO_PLAYER);
 						break;
@@ -713,10 +735,13 @@ class Tracker {
 					bc->predCrd = bc->curCrd;										// POSITION AT FRAME T-1				
 					bc->predCrd = Point(bc->KF.predict().x, bc->KF.predict().y);	// PREDICT FOR FRAME T
 
-					// Correlate
+					/**********************************************************
+					No nearest player - Continue. Correlate and search for best match
+					***********************************************************/
+					
 					vector<Point> matchPoints;
 					vector<double> matchProbs;
-					appearAnalyzer.getMatches(bc, 1, matchPoints, matchProbs);
+					appearAnalyzer.getMatches(bc, 1, matchPoints, matchProbs, TID);
 
 					// matchPoints is never empty
 					if (matchPoints.empty()) 
@@ -732,8 +757,7 @@ class Tracker {
 					bc->predCrd = Point(bc->KF.predict().x, bc->KF.predict().y);	// PREDICT FOR FRAME T+1
 					bc->predCrd = Point(bc->KF.predict().x, bc->KF.predict().y);
 					
-					// if CC < 0.94
-					if (nProb < 0.94) 
+					if (nProb < M1_loose_threshold) 
 					{
 						bc->switchState(curFrame, BALL_STATE::SEARCHING);
 						break;
@@ -753,40 +777,39 @@ class Tracker {
 						break;
 					}
 
-					// Increase window search area
+					// Increase window size
 					#ifdef WINDOW_PERSPECTIVE
 						bc->curRad = bc->curRad + perspectiveRad(searchIncRad, bc->curCrd);
 					#else
 						bc->curRad = bc->curRad + searchIncRad;
-					#endif // WINDOW_PERSPECTIVE
-						
+					#endif						
 					bc->fitFrame();
 
 					vector<Point> matchPoints;
 					vector<double> matchProbs;
 
-					// Correlate
-					appearAnalyzer.getMatches(bc, 1, matchPoints, matchProbs);
+					/**********************************************************
+								Correlate and search for best match
+					***********************************************************/
+					appearAnalyzer.getMatches(bc, 1, matchPoints, matchProbs, TID);
 					
 					Point nCrd   = matchPoints[0];
 					double nProb = matchProbs[0];
 
-					// if CC score > 0.96
+					// Match found
 					if (nProb > M1_find_threshold) 
 					{
 						bc->curCrd		= nCrd;
 						bc->curAppearM	= nProb;
 
-						// set window size to default
+						// Set window size to default
 						#ifdef WINDOW_PERSPECTIVE
 							bc->curRad = perspectiveRad(defRad, bc->curCrd);
 						#else
 							bc->curRad = defRad;
-						#endif // WINDOW_PERSPECTIVE
-
+						#endif
 						bc->fitFrame();
 
-						// switch to BALL_STATE::TRACKING
 						bc->switchState(curFrame, BALL_STATE::TRACKING);
 						break;
 					}
@@ -805,30 +828,36 @@ class Tracker {
 					vector<double> nearbyP_Dist;
 					vector<int> nearbyP_Idx;
 
-					// Find nearest player
+					/**********************************************************
+										Find Nearest Player
+					***********************************************************/
 					getNearestPlayersVctr(bc, nearbyP_Idx, nearbyP_Dist);
-
+					
 					if (!nearbyP_Idx.empty()) 
 					{
 						int minIdx = distance(nearbyP_Dist.begin(), min_element(nearbyP_Dist.begin(), nearbyP_Dist.end()));
 						int nearestPlayerIdx = nearbyP_Idx[minIdx];
 						double nearestPlayerDist = nearbyP_Dist[minIdx];
 
-						if (nearestPlayerDist < 15.0) 
+						// Locate nearest player
+						if (nearestPlayerDist < 15.0)
 						{
-							// --- move window to the player
+							// Move window to the player
 							Rect pRect = pCandidates[nearestPlayerIdx]->curRect;
 							bc->curCrd = Point(pRect.x + pRect.width/2, pRect.y + int(bc->attachedHeight * pRect.height));
 
+							// Create large window
 							#ifdef WINDOW_PERSPECTIVE
 								bc->curRad = Point(pRect.width/2, pRect.height/2) + perspectiveRad(attachRad, bc->curCrd);
 							#else
 								bc->curRad = Point(pRect.width/2, pRect.height/2) + attachRad;
-							#endif // WINDOW_PERSPECTIVE
-
+							#endif
 							bc->fitFrame();
-							bc->curAppearM = 0.0;
+							//bc->curAppearM = 0.0;
 
+							/**********************************************************
+										Prepare and perform template matching
+							***********************************************************/
 							// ------ 1) create mask from all nearby players
 							Rect winRect = bc->curRect;
 							Mat mask = Mat(winRect.height, winRect.width, CV_8UC3, Scalar(1,1,1)); // Original (1,1,1)
@@ -852,12 +881,14 @@ class Tracker {
 							vector<double> matchProbs;
 
 							// Correlate.. Task -> include distance constraint ( Use filter )
-							appearAnalyzer.getMatches(bc, 3, matchPoints, matchProbs);
+							appearAnalyzer.getMatches(bc, 3, matchPoints, matchProbs, TID);
 
 							vector<Point>  nCrds = matchPoints;
 							vector<double> nProbs = matchProbs;
 
-							// Determine most probable candidate						
+							/**********************************************************
+												Search for best match
+							***********************************************************/
 							for (int i = 0; i < nCrds.size(); i++)
 							{
 								vector<double> nearbyP_Dist;
@@ -872,37 +903,46 @@ class Tracker {
 									int nearestPlayerIdx = nearbyP_Idx[minIdx];
 									double nearestPlayerDist = nearbyP_Dist[minIdx];
 
-									// IF - Most probable ball if candidate is isolated
+									// Safest match if candidate is isolated
 									if (nearestPlayerDist > 50.0 && nProbs[i] > 0.95)
 									{
 										bc->curCrd = nCrds[i];
+										bc->curAppearM = nProbs[i];
+
+										// Revert to default window
 										#ifdef WINDOW_PERSPECTIVE
 										bc->curRad = perspectiveRad(defRad, bc->curCrd);
 										#else
 										bc->curRad = defRad;
-										#endif // WINDOW_PERSPECTIVE
+										#endif
 										bc->fitFrame();
-										bc->curAppearM = nProbs[i];
+
 										bc->switchState(curFrame, BALL_STATE::TRACKING);
 										break;
 									}
 								}
 							}
 
-							// ELSE - Designate the highest match as the ball
-							if (nProbs[0] > M1_find_threshold)
+							// Safest match not found - Designate the highest match as the ball
+							if (nProbs[0] > 0.96)
 							{
 								bc->curCrd = nCrds[0];
+								bc->curAppearM = nProbs[0];
+								
+								// Keep large window
 								#ifdef WINDOW_PERSPECTIVE
 								bc->curRad = perspectiveRad(defRad, bc->curCrd);
 								#else
 								bc->curRad = defRad;
-								#endif // WINDOW_PERSPECTIVE
+								#endif
 								bc->fitFrame();
-								bc->curAppearM = nProbs[0];
+								
 								bc->switchState(curFrame, BALL_STATE::TRACKING);
 								break;
 							}
+
+							bc->curAppearM = nProbs[0];
+							//bc->switchState(curFrame, BALL_STATE::TRACKING);
 
 							break;
 						}
@@ -1322,7 +1362,7 @@ class Tracker {
 				vector<double> probs;
 
 				// Correlate
-				appearAnalyzer.getMatches(possCand, 1, points, probs);
+				appearAnalyzer.getMatches(possCand, 1, points, probs, TID);
 
 				Point nCrd = possCand->curCrd;
 				double nProb = 0.0;
@@ -1425,7 +1465,29 @@ class Tracker {
 			//{
 			//	label += "MAYBE";
 			//}
-			
+			//
+
+			//if (TID == 3 && bCandidates.size() != 0)
+			//{
+			//	static int count = 0;
+			//	Rect roi = Rect(Point(bCandidates[0]->curCrd - Point(120, 100)), Point(bCandidates[0]->curCrd + Point(120, 100))) & Rect(0,0,960,540);
+
+			//	
+			//	Point balance = Point(240 - roi.width, 200 - roi.height);
+			//	
+
+			//	Rect actual = Rect(roi.x, roi.tl().y - balance.y, 240/*roi.br().x + balance.x*/, 200/*roi.br().y*/);
+			//	//Rect actual = Rect(Point(roi.tl() - balance), Point(roi.br())) & Rect(0,0,960,540);
+			//	
+			//	Mat show = frame(actual);
+			//	char filename[40];
+			//	sprintf(filename, "Track_%d.png", count);
+			//	imwrite(filename, show);
+			//	count++;
+			//	imshow("L", show);
+			//	waitKey(1);
+			//}
+
 			label += /*";  " + */metric.toString_prc();
 			setLabel (frame, Rect(0, 0, 900, 20), label);
 		}
@@ -1440,11 +1502,11 @@ class Tracker {
 			}
 
 			// draw track marks of mainCandidate
-			unsigned s = unsigned(max(double(bc->coords.size())-25, 1.0));
+			/*unsigned s = unsigned(max(double(bc->coords.size())-25, 1.0));
 			for (unsigned i = s; i < bc->coords.size(); i++) 
 			{
 				line(frame, bc->coordsKF[i-1], bc->coordsKF[i], CV_RGB(255, 255, 0), 1, CV_AA);
-			}
+			}*/
 
 			// Ball state
 			Scalar boxColor = CV_RGB(0,0,0);
@@ -1467,20 +1529,21 @@ class Tracker {
 									Display information on camera view
 			*********************************************************************************/
 			
-			// Height of ball ( but frame t - 1 )
+			//Height of ball ( but frame t - 1 )
 			float height = 0;
 			for (int i = 0; i < Ball.size(); i++)	if (TID == Ball[i]->cameraID)	if(Ball[i]->coords3D.size() != 0) height = (Ball[i]->coords3D.end() - 1)->z;
 
-			//// Track ratio
+			// Track ratio
 			double trackRatio = double(bc->getStateDuration(BALL_STATE::TRACKING)) / bc->lifeTime;
-			
+
 			// Ball state
-			rectangle(frame, bc->curRect, boxColor);
+			rectangle(frame, bc->curRect, CV_RGB(255, 0, 0));
+			//circle(frame, bc->curCrd, 5, CV_RGB(255, 0, 0));
 
 			// Display text
-			char label[40];
-			sprintf(label, "%d %d", bc->curCrd.x , bc->curCrd.y/*, bc->id, Ball.size()*//*, bc->curAppearM, Ball.size()*/);
-			putText(frame, label, Point((bc->coordsKF.end() - 1)->x + 40, (bc->coordsKF.end() - 1)->y + 10), CV_FONT_HERSHEY_COMPLEX_SMALL, 2, Scalar(255, 255, 255));
+			//char label[40];
+			//sprintf(label, "%.2f %.2f", trackRatio, bc->curAppearM/*, bc->id, Ball.size()*//*, bc->curAppearM, Ball.size()*/);
+			//putText(frame, label, Point((bc->coordsKF.end() - 1)->x + 40, (bc->coordsKF.end() - 1)->y + 20), CV_FONT_HERSHEY_COMPLEX_SMALL, 2, CV_RGB(255, 255, 255));
 
 		}
 
@@ -1581,6 +1644,7 @@ class Tracker {
 		}
 
 		//=========================================================================================
+		// lol gay
 		void mergeWindows () {
 			auto groups = merge_(bCandidates, &Tracker::compareMerge_Window);
 			vector<BallCandidate*> toDelete;

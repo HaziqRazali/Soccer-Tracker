@@ -18,7 +18,7 @@ TTD
 [✓]	Results and Conclusion
 
 Things to improve
-[]  Background Subtraction (MOG ?)
+[]  Background Subtraction (Jin Wee field model)
 []  Segmentation
 []  Identification
 
@@ -240,6 +240,11 @@ int main() {
 
 		int debugger = 0;
 
+
+		Ptr<BackgroundSubtractorMOG2> MOG2;
+		MOG2 = createBackgroundSubtractorMOG2();
+		MOG2->setShadowValue(0);
+
 		#pragma omp critical
 		trackInfo[TID].allowTracking = true;
 		ID_shift = TID;
@@ -321,7 +326,9 @@ int main() {
 
 				if (horFlip) { flip(frame, frame, 1); } // !!!!! some source videos might be flipped !!!!!
 
-				Mat mask = remover.processFrame(frame);
+				Mat mask;
+				MOG2->apply(frame, mask);
+				//Mat mask = remover.processFrame(frame);
 
 				vector<Rect> players_cand;
 				vector<Point> ball_cand;
@@ -362,6 +369,14 @@ int main() {
 				else 			
 				{
 					tracker.drawTrackingMarks(frame, TID);
+					/*if (TID == 4 || TID == 5)
+					{
+						char filename[40];
+						static int count = 0;
+						sprintf(filename, "Image_%d_%d.png", TID, count);
+						imwrite(filename, frame);
+						count++;
+					}*/
 				}
 				
 				#ifdef WRITE_VIDEO
