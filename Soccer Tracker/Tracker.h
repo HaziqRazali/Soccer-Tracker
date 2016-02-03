@@ -125,12 +125,12 @@ class Tracker {
 
 			if (mainCandidate == NULL || mainCandidate->getState() == 1) 
 			{
-				trackInfo.set(-1, Rect(), Point(-1, -1), Point(), givenTrajectory[curFrame + 2], metric.results);
+				trackInfo.set(-1, Rect(), Point(-1, -1), Point(), givenTrajectory[curFrame + 2]);
 			} 
 			
 			else 
 			{
-				trackInfo.set(mainCandidate->id, mainCandidate->curRect, mainCandidate->curCrd, mainCandidate->predCrd, givenTrajectory[curFrame + 2], metric.results);
+				trackInfo.set(mainCandidate->id, mainCandidate->curRect, mainCandidate->curCrd, mainCandidate->predCrd, givenTrajectory[curFrame + 2]);
 			}
 
 			return trackInfo;
@@ -199,23 +199,32 @@ class Tracker {
 		}
 
 		//=========================================================================================
-		inline void updateMetric(ofstream& file) {
+		inline void updateMetric(ofstream& file, int processedFrames) {
+
+			// Write condition -> if processed Frames not at XXX, return
+
 			Point p = givenTrajectory[curFrame + 3];
+			Point mainCandCrd;
 
 			bool exists = (p != outTrajPoint);
-			bool detected = (mainCandidate != NULL);			
+			bool detected = (mainCandidate != NULL);				
 
+			if (detected) mainCandCrd = mainCandidate->curCrd;
+			else		  mainCandCrd = Point(-1, -1);
+
+			/************************************************
+							Ground Truth exists
+			*************************************************/
 			if (exists)
 			{	
-				metric.Total++;
+				metric.TG++;
 
-				// Candidate found
+				/************************************************
+								Candidate Found
+				*************************************************/
 				if (detected) 
 				{
-					// Save results to file
-					file << p.x << " " << p.y << " " << mainCandidate->curCrd.x << " " << mainCandidate->curCrd.y << endl;
-
-					// Compute euclidean distance of candidate to GT
+					// Compute euclidean distance
 					double dist = sqrt(distSQ(mainCandidate->curCrd, p));
 
 					// Update track ratio of main candidate
@@ -223,53 +232,85 @@ class Tracker {
 					else												     metric.addDistance(0.0);
 					
 					if (dist < 5) 	metric.TP++; // correctly detected
-					else       	    metric.TN++; // incorrectly detected
+					else       	    metric.FN++; // incorrectly detected
 
-					// Update vector of tracking results
-					metric.results.push_back(make_pair(p, mainCandidate->curCrd));
+					// Save results to file
+					//file << p.x << " " << p.y << " " << mainCandidate->curCrd.x << " " << mainCandidate->curCrd.y << endl;
 				} 
 				
-				// Candidate not found
+				/************************************************
+								Candidate Not Found
+				*************************************************/
 				else 
 				{
 					// Save results to file
-					file << p.x << " " << p.y << " " << -1 << " " << -1 << endl;
+					//file << p.x << " " << p.y << " " << -1 << " " << -1 << endl;
 
 					metric.addDistance(0.0);
-					metric.TN++;
-
-					// Update vector of tracking results
-					metric.results.push_back(make_pair(p, Point(-1,-1)));
+					metric.FN++;
 				}
 
 			} 
 			
-			// The real ball doesn't exist
+			/************************************************
+						Ground Truth does not exist
+			*************************************************/
 			else 
 			{
 				// Save results to file
-				file << p.x << " " << p.y << " " << -1 << " " << -1 << endl;
+				//file << p.x << " " << p.y << " " << -1 << " " << -1 << endl;
 
 				metric.addDistance(0.0);
 				
 				if (detected)	metric.FP++; // incorrectly detected
-				else 			metric.FN++; // no candidate found
-				
-				// Update vector of tracking results. Task -> continue to update mainCandidate->curCrd
-				metric.results.push_back(make_pair(p, p));
+				else 			metric.TN++; // no candidate found
 			}
+
+			/************************************************
+							Update Metrics
+			*************************************************/
+			
+			double TP = metric.TP;
+			double TN = metric.TN;
+			double FP = metric.FP;
+
+
+			// Tracker Detection Rate
+			if (metric.TG != 0)				metric.Tracker_Detection_Rate   = metric.TP / (double)metric.TG;
+
+			// False Alarm Rate
+			if (metric.TP + metric.FP != 0)	metric.FA_Rate					= metric.FP / (double)(metric.TP + metric.FP);
+
+			// Precision and Recall
+			if (metric.TP + metric.FN != 0)	metric.Recall					= metric.TP / (double)(metric.TP + metric.FN);
+			if (metric.TP + metric.FP != 0)	metric.Positive_Precision		= metric.TP / (double)(metric.TP + metric.FP);
+			if (metric.FN + metric.TN != 0)	metric.Negative_Precision		= metric.TN / (double)(metric.FN + metric.TN);
+
+			// TN FN FP Rate
+			if (metric.FP + metric.TN != 0)	metric.TN_Rate					= metric.TN / (double)(metric.FP + metric.TN);
+			if (metric.FN + metric.TP != 0)	metric.FN_Rate					= metric.FN / (double)(metric.FN + metric.TP);
+			if (metric.FP + metric.TN != 0)	metric.FP_Rate					= metric.FP / (double)(metric.FP + metric.TN);
+
+			// Accuracy (Initialize only after TG > 0)
+			//if (metric.TG != 0)				metric.Accuracy = (metric.TP + metric.TN) / curFrame; // cannot curFrame
+
+			file << p.x << " " << p.y << " " << mainCandCrd.x << " " << mainCandCrd.y << " "
+				<< metric.Tracker_Detection_Rate << " " << metric.FA_Rate << " " << metric.Recall << " "
+				<< metric.Positive_Precision << " " << metric.Negative_Precision << " "
+				<< metric.TN_Rate << " " << metric.FN_Rate << " " << metric.FP_Rate << " "
+				<< processedFrames << endl;
 		}
 
 		//=========================================================================================
 		void processFrame(Mat& frame, vector<Point>& ball_cand, vector<Rect>& player_cand, vector<ProjCandidate*> Ball, int TID, int processedFrames, ofstream& file) {
-
+			
 			this->Ball = Ball;
 
 			trackPlayers(player_cand, frame);
 			trackBall(frame, ball_cand, Ball, TID, processedFrames);
 
 			drawTrajectory(frame, 2);
-			updateMetric(file);
+			updateMetric(file, processedFrames);
 
 			#ifdef DISPLAY_GROUND_TRUTH
 			drawBallGroundTruth(frame, 5);

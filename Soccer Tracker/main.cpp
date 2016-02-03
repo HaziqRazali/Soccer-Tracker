@@ -326,9 +326,9 @@ int main() {
 
 				if (horFlip) { flip(frame, frame, 1); } // !!!!! some source videos might be flipped !!!!!
 
-				Mat mask;
-				MOG2->apply(frame, mask);
-				//Mat mask = remover.processFrame(frame);
+				/*Mat mask;
+				MOG2->apply(frame, mask);*/
+				Mat mask = remover.processFrame(frame);
 
 				vector<Rect> players_cand;
 				vector<Point> ball_cand;

@@ -12,12 +12,16 @@ namespace st {
 //*************************************************************************************************
 struct AccuracyMetric {
 
-	int TP, TN, FP, FN;
-	int Total;
-	vector<pair<Point, Point>> results;
+	// True Positive, True Negative, False Positive, False Negative, Total Ground Truth
+	int TP, TN, FP, FN, TG;
+
+	// 
+	double Tracker_Detection_Rate, FA_Rate, Recall, TN_Rate, Accuracy, Positive_Precision, Negative_Precision, FN_Rate, FP_Rate;
+
 	double TR;
 	double TP_norm, TN_norm, FP_norm, FN_norm, R, dist_norm;
 	deque<double> _dist;
+
 
 	//=============================================================================================
 	AccuracyMetric () {
@@ -79,7 +83,7 @@ struct AccuracyMetric {
 		normalize();
 		char buffer[100];
 		//sprintf(buffer, "TP: %2.1f, TN: %2.1f, FP: %2.1f, FN: %2.1f, R: %2.1f, D: %.1f", TP_norm, TN_norm, FP_norm, FN_norm, R, dist_norm);
-		sprintf(buffer, "TP: %d / %d", TP, Total);
+		sprintf(buffer, "TP: %d / %d", TP, TG);
 		return buffer;
 	}
 };
