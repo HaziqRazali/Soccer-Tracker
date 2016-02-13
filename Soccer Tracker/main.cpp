@@ -12,23 +12,15 @@ TTD
 [✓]	Multiple and Single Camera Height Estimation
 [✓]	Camera Coordinates Extraction
 [✓]	Kick off
-[]	Camera Handoff
+[✓]	Camera Handoff
+[] Coordinated Tracking
 []	Physics
 
 [✓]	Results and Conclusion
 
 Things to improve
-[]  Background Subtraction (Jin Wee field model)
-[]  Segmentation
 []  Identification
-
-Camera Handoff
-[✓] Revert to original
-[✓] Internal Height Estimation will form plane
-[✓] Find out how to store Mat planeTrajectory
-[✓] Plane will remain until double detections are found
-[] State Transition
-- All detections will be checked against plane
+[]  Camera Handoff
 
 */
 

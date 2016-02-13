@@ -201,7 +201,7 @@ class Tracker {
 		//=========================================================================================
 		inline void updateMetric(ofstream& file, int processedFrames) {
 
-			// Write condition -> if processed Frames not at XXX, return
+			if (processedFrames < 358) return; // 358
 
 			Point p = givenTrajectory[curFrame + 3];
 			Point mainCandCrd;
@@ -209,6 +209,7 @@ class Tracker {
 			bool exists = (p != outTrajPoint);
 			bool detected = (mainCandidate != NULL);				
 
+			// Temporary container
 			if (detected) mainCandCrd = mainCandidate->curCrd;
 			else		  mainCandCrd = Point(-1, -1);
 
@@ -231,7 +232,7 @@ class Tracker {
 					if (mainCandidate->getState() == BALL_STATE::TRACKING) { metric.addDistance(dist); metric.TR = double(mainCandidate->getStateDuration(BALL_STATE::TRACKING)) / mainCandidate->lifeTime; }
 					else												     metric.addDistance(0.0);
 					
-					if (dist < 5) 	metric.TP++; // correctly detected
+					if (dist < 10) 	metric.TP++; // correctly detected
 					else       	    metric.FN++; // incorrectly detected
 
 					// Save results to file
@@ -299,6 +300,8 @@ class Tracker {
 				<< metric.Positive_Precision << " " << metric.Negative_Precision << " "
 				<< metric.TN_Rate << " " << metric.FN_Rate << " " << metric.FP_Rate << " "
 				<< processedFrames << endl;
+
+			//file << p.x << " " << p.y << metric.Recall << metric.FN_Rate << endl;
 		}
 
 		//=========================================================================================
@@ -1582,9 +1585,9 @@ class Tracker {
 			//circle(frame, bc->curCrd, 5, CV_RGB(255, 0, 0));
 
 			// Display text
-			//char label[40];
-			//sprintf(label, "%.2f %.2f", trackRatio, bc->curAppearM/*, bc->id, Ball.size()*//*, bc->curAppearM, Ball.size()*/);
-			//putText(frame, label, Point((bc->coordsKF.end() - 1)->x + 40, (bc->coordsKF.end() - 1)->y + 20), CV_FONT_HERSHEY_COMPLEX_SMALL, 2, CV_RGB(255, 255, 255));
+			char label[40];
+			sprintf(label, "%1.2f", height/*, bc->id, Ball.size()*//*, bc->curAppearM, Ball.size()*/);
+			putText(frame, label, Point((bc->coordsKF.end() - 1)->x + 40, (bc->coordsKF.end() - 1)->y + 20), CV_FONT_HERSHEY_COMPLEX_SMALL, 2, CV_RGB(255, 255, 255));
 
 		}
 

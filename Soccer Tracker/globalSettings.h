@@ -20,7 +20,7 @@ double scaleLoad = 0.5;
 const int gui_camPreviewH = 1080, gui_camPreviewW = 1920;
 const int gui_modelH = 652, gui_modelW = 948;
 
-//#define WRITE_VIDEO // save video to disk
+#define WRITE_VIDEO // save video to disk
 #define DISPLAY_GROUND_TRUTH // display ground truth
 #define NOT_FROM_THE_BEGINING // begin tracking from frame 361 (where the groundtruth starts)
 #define START_FRAME 300 // 650 1300 2400
