@@ -85,7 +85,7 @@ class TrajectoryAnalyzer {
 				vector<pair<int, Point>> xmlTraj, processedTraj;
 
 				// Stores ball position in xmlTraj
-				int res = xmlParser::parseBallPositions ("ground_truth_ordered\\ground_truth_" + to_string(idx) + ".xgtf", xmlTraj);
+				int res = xmlParser::parseBallPositions("ground_truth_ordered\\ground_truth_" + to_string(idx) + ".xgtf", xmlTraj);
 
 				if (res)
 				{

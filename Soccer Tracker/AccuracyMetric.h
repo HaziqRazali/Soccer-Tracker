@@ -83,7 +83,7 @@ struct AccuracyMetric {
 		normalize();
 		char buffer[100];
 		//sprintf(buffer, "TP: %2.1f, TN: %2.1f, FP: %2.1f, FN: %2.1f, R: %2.1f, D: %.1f", TP_norm, TN_norm, FP_norm, FN_norm, R, dist_norm);
-		sprintf(buffer, "TP: %d / %d", TP, TG);
+		//sprintf(buffer, "TP: %d / %d", TP, TG);
 		return buffer;
 	}
 };

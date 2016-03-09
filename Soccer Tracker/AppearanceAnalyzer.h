@@ -3,13 +3,18 @@
 #include <cv.h>
 #include <vector>
 #include "BallCandidate.h"
+#include "PlayerCandidate.h"
 #include "globalSettings.h"
+#include "BackGroundRemover.h"
 
 #include <iostream>
 
 #include <opencv\cv.h>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
+
+#include <stdio.h>
+#include <stdlib.h>
 
 using namespace cv;
 using namespace std;
@@ -29,6 +34,7 @@ class AppearanceAnalyzer {
 
 		Mat frame, restrictedArea;
 		Mat teamA, teamB;
+		Mat tmplate[3];
 		Mat referee;
 
 		vector<Mat> ballTempls;
@@ -66,6 +72,10 @@ class AppearanceAnalyzer {
 			temp.copyTo(referee);
 
 			temp.release();
+
+			tmplate[0] = imread("White.png");
+			tmplate[1] = imread("Blue.png");
+			tmplate[2] = imread("Referee.png");
 		}
 
 		//=========================================================================================
@@ -127,15 +137,6 @@ class AppearanceAnalyzer {
 			double minVal, maxVal;
 			Point minLoc, maxLoc;
 
-			/*int count = 0;
-			for (int i = 0; i < corrMtrx.rows; i++)
-				for (int j = 0; j < corrMtrx.cols; j++)
-				{
-					if (corrMtrx.at<float>(i, j) > 0.94) count++;
-				}
-
-			if(TID == 0) cout << count << endl;*/
-
 			// Finds the coordinate with the highest CC score
 			for (int i = 0; i < dotsCnt; i++) 
 			{
@@ -194,14 +195,98 @@ class AppearanceAnalyzer {
 
 				return std::min_element(dist.begin(), dist.end()) - dist.begin();
 
-				//// Classify
-				//float distToA		= norm(featureVector, teamA, NORM_L2);
-				//float distToB		= norm(featureVector, teamB, NORM_L2);
-				//float distToReferee = norm(featureVector, referee, NORM_L2);
-
-				//if (distToA < distToB) return 0;
-				//else				   return 1;
 			}
+		}
+
+		void segmentPlayer(vector<PlayerCandidate*> pCandidates, Rect overlappedRoi, Mat& _frame, int TID, Mat _mask) {
+			
+			Rect bounds(0, 0, frame.cols, frame.rows);
+
+			// Extract image of overlapping rect
+			Mat _crop		= frame(overlappedRoi & bounds).clone();
+
+			if (_crop.empty()) return;
+
+			Mat mask = _mask(overlappedRoi & bounds);
+			Mat crop;
+			_crop.copyTo(crop, mask);
+
+			Rect limit = Rect(0, 0, crop.cols, crop.rows);
+
+			// Split into bgr
+			vector<Mat> crop_bgr;
+			split(crop, crop_bgr);
+
+			// Template match
+			for (int i = 0; i < pCandidates.size(); i++)
+			{
+				// Estimate rect of candidate
+				Rect prevRect = Rect(0, 0, (10 * overlappedRoi.br().y / 540) + 30, (40 * overlappedRoi.br().y / 540) + 30) & limit;
+				
+				// Resize template to size of bounding box
+				Mat playerTmplate = tmplate[pCandidates[i]->teamID].clone();
+				resize(playerTmplate, playerTmplate, Size(prevRect.width, prevRect.height));	
+
+				// Split template to bgr
+				vector<Mat> playerTmplate_bgr;
+				split(playerTmplate, playerTmplate_bgr);
+
+				// Color based template matching
+				Mat corrMtrx[3]; Point center;
+				double score = 0;
+				
+				double minVal, maxVal;
+				Point minLoc, maxLoc;
+				for (int j = 0; j < 3; j++)
+				{
+					// Match template
+					matchTemplate(crop_bgr[j], playerTmplate_bgr[j], corrMtrx[j], matchMethod);
+
+					// Find best match
+					minMaxLoc(corrMtrx[j], &minVal, &maxVal, &minLoc, &maxLoc);
+
+					// Confirm theory
+					center = center + maxLoc + Point(playerTmplate.cols/2, playerTmplate.rows/2);
+					score = score + maxVal;
+				}
+				
+				center = center / 3;
+				pCandidates[i]->playerLikelihood = score / 3;
+				pCandidates[i]->Occlusion = true;
+
+				// Set image roi to zero for next iteration
+				for (int j = 0; j < 3; j++)
+				{
+					Point tl = Point(center.x - playerTmplate.cols / 2, center.y - playerTmplate.rows / 2);
+					Point br = Point(center.x + playerTmplate.cols / 2, center.y + playerTmplate.rows / 2);
+
+					// Set region around best match to 0
+					Mat roi = crop_bgr[j](Rect(tl, br));
+					roi.setTo(0);
+				}
+				
+				// top left and bottom right for candidate bb
+				Point tl = Point(overlappedRoi.x + center.x - prevRect.width / 2, overlappedRoi.y + center.y - prevRect.height / 2);
+				Point br = Point(overlappedRoi.x + center.x + prevRect.width / 2, overlappedRoi.y + center.y + prevRect.height / 2);
+
+				Rect bb = Rect(tl, br);
+				rectangle(_frame, Rect(tl, br), CV_RGB(255,0,0), 1);
+				
+				// candidate feet
+				Point crd = Point(bb.x + bb.width/2, bb.y + bb.height);
+
+				// Update pCandidate
+				//*(pCandidates[i]->coords.end() - 1) = crd;
+				pCandidates[i]->curCrd = crd;
+				//*(pCandidates[i]->prevRects.end() - 1) = bb;
+				pCandidates[i]->curRect = bb;
+				pCandidates[i]->predictTime--;
+			}
+		}
+
+		void setLimit(Rect input, Rect reference) {
+
+
 		}
 
 		//=========================================================================================

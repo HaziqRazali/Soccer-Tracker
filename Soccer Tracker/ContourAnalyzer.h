@@ -64,25 +64,38 @@ class ContourAnalyzer {
 
 		//=========================================================================================
 		void filterAndSortRoi_Geom (vector<vector<Point>>& roi, vector<vector<Point>>& player, vector<vector<Point>>& ball) {
+			
 			int pxExpectedPlayerSize[2] = {int(expectedPlayerSize[0] * fSize.y), int(expectedPlayerSize[1] * fSize.x)};
 			int pxExpectedBallSize[2] = {int(expectedBallSize[0] * fSize.y), int(expectedBallSize[1] * fSize.x)};
+			
 			vector<vector<Point>>::const_iterator it = roi.begin();
-			while (it != roi.end()) {
+		
+			while (it != roi.end()) 
+			{
+
 				Rect boundRect = boundingRect(*it);
+				
+				// Compute area
 				double area = contourArea(*it);
+
+				// Compute perimeter
 				int perimeter = int(it->size());
-				double perimeter_ = arcLength(*it, true);
+				double perimeter_ = arcLength(*it, true); 
+
+				// Compute roundness
 				Point2f circleCntr;
 				float circleRad;
 				minEnclosingCircle(*it, circleCntr, circleRad);
 				double roundness = 4 * PI * area / (perimeter * perimeter);
 
+				// Condition for player
 				if ((boundRect.height > pxExpectedPlayerSize[0]) && (boundRect.height < pxExpectedPlayerSize[1]) &&
 					(boundRect.height > boundRect.width) && (area > 0.3 * double(boundRect.area()))		) 
 				{
 					player.push_back(*it);
 				} 
 				
+				// Condition for ball
 				else if ((boundRect.height > pxExpectedBallSize[0]) && (boundRect.height < pxExpectedBallSize[1]) &&
 						 (boundRect.height < 2 * boundRect.width) && (boundRect.width < 3 * boundRect.height) &&
 						 (area > 0.2 * double(boundRect.area())) && (roundness > 0.4)) 

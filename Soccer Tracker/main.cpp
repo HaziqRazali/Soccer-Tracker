@@ -2,7 +2,7 @@
 
 1 pixel in x = 0.05464m
 1 pixel in y = 0.06291m
-Radius of ball (Googled) = 0.7m
+Radius of ball (Googled) = 0.22m
 
 If everything is in meters, then find out how to generate actual velocity given 2 frames
 
@@ -13,14 +13,16 @@ TTD
 [✓]	Camera Coordinates Extraction
 [✓]	Kick off
 [✓]	Camera Handoff
-[] Coordinated Tracking
+[✓]	Coordinated Tracking
+[✓]	Player Occlusion
+[]      Object / Camera Handoff
 []	Physics
 
 [✓]	Results and Conclusion
 
-Things to improve
-[]  Identification
-[]  Camera Handoff
+Current Tasks
+[✓] Mixture of Gaussian vs Adaptive Histogram on Alfheim / ISSIA
+[] Extrapolate Trajectory
 
 */
 
@@ -127,7 +129,14 @@ int main() {
 		sstm << "Camera " << i + 1 << ".txt";
 		outFile[i].open(sstm.str());
 	}
-	
+
+	ofstream t_Error;
+	stringstream _sstm;
+
+	_sstm.str("");
+	_sstm << "TriangulationError" << ".txt";
+	t_Error.open(_sstm.str());
+
 	// Save Ground Truth to file
 	//ofstream outFile[6];
 	//static stringstream sstm;
@@ -318,9 +327,21 @@ int main() {
 
 				if (horFlip) { flip(frame, frame, 1); } // !!!!! some source videos might be flipped !!!!!
 
-				/*Mat mask;
-				MOG2->apply(frame, mask);*/
-				Mat mask = remover.processFrame(frame);
+				Mat mask;
+				mask = remover.processFrame(frame);
+
+				/*MOG2->apply(frame, mask);
+
+				erode(mask, mask, getStructuringElement(MORPH_RECT, Size(3, 3)));
+				dilate(mask, mask, getStructuringElement(MORPH_RECT, Size(3, 3)));*/
+
+				Mat playerMask = mask.clone();
+
+				if (TID == 0)
+				{
+					imshow("BG", mask);
+					waitKey(1);
+				}
 
 				vector<Rect> players_cand;
 				vector<Point> ball_cand;
@@ -343,7 +364,7 @@ int main() {
 				*********************************************************************************/
 				
 				tracker.setTrackInfo(trackInfo[TID]);
-				tracker.processFrame(frame, ball_cand, players_cand, mcTracker.getTruePositives(), TID, processedFrames, outFile[TID]);
+				tracker.processFrame(frame, ball_cand, players_cand, mcTracker.getTruePositives(), TID, processedFrames, outFile[TID], playerMask);
 				trackInfo[TID] = tracker.getTrackInfo();
 
 				#pragma omp critical
@@ -361,14 +382,12 @@ int main() {
 				else 			
 				{
 					tracker.drawTrackingMarks(frame, TID);
-					/*if (TID == 4 || TID == 5)
-					{
-						char filename[40];
-						static int count = 0;
-						sprintf(filename, "Image_%d_%d.png", TID, count);
-						imwrite(filename, frame);
-						count++;
-					}*/
+				}
+
+				if (TID == 0)
+				{
+					imshow("frame", frame);
+					waitKey(1);
 				}
 				
 				#ifdef WRITE_VIDEO
@@ -391,6 +410,23 @@ int main() {
 			}
 		}
 
+		/*#ifndef THREE_DIMENSIONAL_ANALYSIS
+		else
+		{
+			namedWindow("cameraView", CV_WINDOW_AUTOSIZE);
+			imshow("cameraView", cameraView);
+
+			#pragma omp critical
+			camerasReady = 0;
+			#pragma omp critical
+			{
+				for (int i = 0; i < CAMERAS_CNT; i++)
+					trackInfo[i].allowTracking = true;
+			}
+		}
+		#endif*/
+
+		#ifdef THREE_DIMENSIONAL_ANALYSIS
 		else 
 		{
 			//_____________________________________________________________________________________
@@ -438,7 +474,7 @@ int main() {
 					*********************************************************************************/
 					
 					mcTracker.updateTrackData(trackInfo);
-					mcTracker.process();
+					mcTracker.process(t_Error, globalFrameCount);
 					mcTracker.finalizeResults(modelPreview, cameraView);
 
 					imshow("modelView", modelPreview);
@@ -507,6 +543,7 @@ int main() {
 			}
 
 		}
+		#endif
 	}
 
 	double allTime = double((clock() - tic)) / CLOCKS_PER_SEC;

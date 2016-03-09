@@ -208,6 +208,7 @@ class MultiCameraTracker {
 		Point3d velocity;
 		float landingTime;
 		vector<Point3d> estimatedTrajectory;
+		Point landingPos;
 
 		/*********************************************************
 							Object handoff
@@ -319,10 +320,10 @@ class MultiCameraTracker {
 		}
 
 		//=========================================================================================
-		void process () {
+		void process(ofstream& file, int globalFrameCount) {
 			
 			// True positive identification
-			identifyTruePositive();
+			identifyTruePositive(file, globalFrameCount);
 			
 			// Object handover
 			objectHandover();
@@ -331,7 +332,7 @@ class MultiCameraTracker {
 			compute3D_Coords();
 				
 			// Camera handoff for frame t + 1
-			//cameraHandoff();
+			cameraHandoff();
 
 		}
 
@@ -385,49 +386,52 @@ class MultiCameraTracker {
 				circle(img, Point(x, y), 5, Scalar(0, 0, 255));
 			}*/
 
+			//circle(img, landingPos, 30, CV_RGB(0, 0, 0), 1);
+
 			//circle(img, Point(0, 0), 300, (0, 0, 0));
 
 			//Display coordinates of true positive on the field model
-			//for (auto real : getTruePositives())
-			//{
-			//	double x = (real->coords3D.end()-1)->x;
-			//	double y = (real->coords3D.end()-1)->y;
-			//	double z = (real->coords3D.end()-1)->z;
+			for (auto real : getTruePositives())
+			{
+				if (real->coords3D.size() == 0) break;
+				double x = (real->coords3D.end()-1)->x;
+				double y = (real->coords3D.end()-1)->y;
+				double z = (real->coords3D.end()-1)->z;
 
-			//	// Convert meters back to pixels for display
-			//	char coordinate[40];
-			//	Point position = Point(x / 0.05464 + 10, y / 0.06291 + 10);
+				// Convert meters back to pixels for display
+				char coordinate[40];
+				Point position = Point(x / 0.05464 + 10, y / 0.06291 + 10);
 
-			//	// Display coordinates of ball in meters
-			//	sprintf(coordinate, "%.0f %.0f %.0f", x, y, z);
-			//	putText(img, coordinate, position, CV_FONT_HERSHEY_COMPLEX_SMALL, 1, Scalar(0, 0, 0));
+				for (int i = 0; i < real->coords3D.size(); i++)
+				{
+					Point xy = Point(real->coords3D[i].x, real->coords3D[i].y);
+					circle(img, Point(xy.x / 0.05464, xy.y / 0.06291), 10, CV_RGB(0, 0, 0), 1);
+				}
 
-			//	break;
-			//}
+				// Display coordinates of ball in meters
+				sprintf(coordinate, "%.0f %.0f %.0f", x, y, z);
+				putText(img, coordinate, position, CV_FONT_HERSHEY_COMPLEX_SMALL, 1, Scalar(0, 0, 0));
+
+				break;
+			}
 
 			// For visual debugging
-			/*for (auto real : getTruePositives())
-			{
-				if (real->other_coord.first != Point())
-				{
-					Point coord = Point(real->other_coord.first) / 3;
-					int camID = real->other_coord.second;
+			//for (auto real : getTruePositives())
+			//{
+			//	if (real->other_coord.first != Point())
+			//	{
+			//		Point coord = Point(real->other_coord.first) / 3; // convert to pixels
+			//		int camID = real->other_coord.second;
 
-					for (auto cam : real->cameraVisible) if (cam->id == camID)
-					{
-						circle(cameraView, coord + cam->viewRect.tl(), 30, (0, 0, 0), 3);
-					}
-				}
-			}*/
+			//		for (auto cam : real->cameraVisible) if (cam->id == camID)
+			//		{
+			//			circle(cameraView, coord + cam->viewRect.tl(), 10, (0, 0, 0), 1);
+			//		}
+			//	}
+			//}
 
 			// Save track Data
-			//saveTrackData();
-
-			/*char filen[40];
-			static int _count = 0;
-			sprintf(filen, "TopIm_%d.png", _count);
-			imwrite(filen, img);
-			_count++;*/
+			saveTrackData();
 
 			modelPreview = img;
 
@@ -448,31 +452,21 @@ class MultiCameraTracker {
 
 		void saveTrackData() {
 
-			static ofstream outFile[6];
+			static ofstream outFile;
 			static stringstream sstm;
 			static bool Switch = false;
 
-			// Loop through all cameras and enter loop only if not empty
-			for (int i = 0; i < CAMERAS_CNT; i++) if (!(result_final[i].size() > 0))
+			// Initialize file name (one time)
+			if (Switch == false)
 			{
-				// Initialize file name (one time)
-				if (Switch == false)
-				{
-					for (int i = 0; i < CAMERAS_CNT; i++)
-					{
-						sstm.str("");
-						sstm << "Camera " << i + 1 << ".txt";
-						outFile[i].open(sstm.str());
-					}
+				sstm.str("");
+				sstm << "3D Data " << ".txt";
+				outFile.open(sstm.str());
 
-					Switch = true;
-				}
-
-				Point actual = (result_final[i].end() - 1)->first;
-				Point measured = (result_final[i].end() - 1)->second;
-
-				outFile[i] << actual.x << " " << actual.y << " " << measured.x << " " << measured.y << endl;
+				Switch = true;
 			}
+			
+			outFile << finalPoint3D.x << " " << finalPoint3D.y << " " << finalPoint3D.z << endl;
 
 		}
 
@@ -560,8 +554,8 @@ class MultiCameraTracker {
 						finalCoords.push_back(finalPoint3D);
 					}
 
-					// If finalPoint3D != 0, opposite camera will then predict its 2D position
-					/*for (int i = 0; i < tempBall[0]->cameraVisible.size(); i++)
+					// If finalPoint3D != 0, opposite camera will then predict its 2D position in meterts
+					for (int i = 0; i < tempBall[0]->cameraVisible.size(); i++)
 					{
 						if (tempBall[0]->cameraVisible[i]->id != tempBall[0]->cameraID)
 						{
@@ -569,12 +563,14 @@ class MultiCameraTracker {
 							vector<Point2f> p_proj = vector<Point2f>(1);
 
 							p_orig[0] = Inv_Triangulate(tempBall[0]->cameraVisible[i]->camCoords, finalPoint3D);
+							p_orig[0] = Point(p_orig[0].x / 0.05464, p_orig[0].y / 0.06291);
+							
 							perspectiveTransform(p_orig, p_proj, tempBall[0]->cameraVisible[i]->homography.inv());
 
 							currCandidates[0]->other_coord.first  = p_proj[0];
 							currCandidates[0]->other_coord.second = tempBall[0]->cameraVisible[i]->id;
 						}
-					}*/
+					}
 				}
 
 				// Height = 0 if all fails
@@ -608,7 +604,12 @@ class MultiCameraTracker {
 			velocity = velocity * 25;
 
 			// Landing time in seconds
-			landingTime = abs(2 * velocity.z / 9.81); //landingTime = abs(4.9 / velocity.z); find out where I initially got this
+			landingTime = abs(2 * velocity.z / 9.81);
+
+			landingPos = Point(velocity.x * landingTime + currentPos.x, velocity.y * landingTime + currentPos.y);
+			landingPos = Point(landingPos.x * 18.3, landingPos.y * 15.9);
+
+			cout << landingPos << endl;
 			
 			// Landing time in frames
 			int landingTime_f = landingTime * 25;
@@ -619,6 +620,8 @@ class MultiCameraTracker {
 			// Ball velocity p/f
 			velocity.x = velocity.x * 18.3 / 25;
 			velocity.y = velocity.y * 15.9 / 25;
+
+			cout << velocity.z << endl;
 
 			for (int t = 0; t < landingTime_f; t++)
 			{
@@ -647,7 +650,7 @@ class MultiCameraTracker {
 			circle(image, cand->getLastPoint(), rad, colors[cand->cameraID], 1, CV_AA);
 			
 			char label[40];
-			sprintf(label, "%d, %d", cand->coords);
+			sprintf(label, "%d %d", cand->coords);
 			Point textCoord = Point((cand->coordsKF.end() - 1)->x + 20, (cand->coordsKF.end() - 1)->x + 20);
 			putText(image, label, textCoord, CV_FONT_HERSHEY_COMPLEX_SMALL, 2, Scalar(255, 255, 255));
 		}
@@ -684,10 +687,14 @@ class MultiCameraTracker {
 		}
 
 		//=========================================================================================
-		void identifyTruePositive () {
+		void identifyTruePositive(ofstream& file, int globalFrameCount) {
 
 			// return if no detections
-			if (currCandidates.size() <= 1) return;
+			if (currCandidates.size() <= 1)
+			{
+				if (globalFrameCount >= 358) file << 0 << " " << framesProcessed << endl;
+				return;
+			}
 
 			double minVal = numeric_limits<double>::max();
 			ProjCandidate *resCand1 = NULL, *resCand2 = NULL;
@@ -715,64 +722,72 @@ class MultiCameraTracker {
 					}
 				}
 			}
-
+			
 			if (minVal < 1)
 			{
+				if (globalFrameCount >= 358) file << minVal << " " << framesProcessed << endl;
 				resCand1->isRealBall = true;
 				resCand2->isRealBall = true;
+			}
+
+			else if(minVal < 2)
+			{
+				if (globalFrameCount >= 358) file << minVal << " " << framesProcessed << endl;
+			}
+
+			else
+			{
+				if (globalFrameCount >= 358) file << 0 << " " << framesProcessed << endl;
 			}
 		}
 
 		//=========================================================================================
-		//void cameraHandoff() {
+		void cameraHandoff() {
 
-		//	Rect boundary = Rect(0, 0, 960, 540);
+			Rect boundary = Rect(0, 0, 960, 540);
 
-		//		// Initialize temporary container
-		//		vector<int> cameraID;
-		//		vector<Camera*> tempCameraId;
-		//						
-		//		// Loop through current candidates
-		//		for (int i = 0; i < currCandidates.size(); i++)
-		//		{
-		//			// if current candidate contains the true positive
-		//			if (currCandidates[i]->isRealBall)
-		//			{
-		//				// its current projected and prediction coordinates
-		//				vector<Point2f> curCrd(1, currCandidates[i]->coords.back());
-		//				vector<Point2f> nxtCrd(1, currCandidates[i]->coords_pred);
+				// Initialize temporary container
+				vector<int> cameraID;
+				vector<Camera*> tempCameraId;
+								
+				// Loop through current candidates
+				for (int i = 0; i < currCandidates.size(); i++)
+				{
+					// if current candidate contains the true positive
+					if (currCandidates[i]->isRealBall)
+					{
+						// its current projected and prediction coordinates
+						vector<Point2f> curCrd(1, currCandidates[i]->coords.back());
+						vector<Point2f> nxtCrd(1, currCandidates[i]->coords_pred);
 
-		//				vector<Point2f> _curCrd(1);
-		//				vector<Point2f> _nxtCrd(1);
+						vector<Point2f> _curCrd(1);
+						vector<Point2f> _nxtCrd(1);
 
-		//				// Loop through all cameras
-		//				for (int j = 0; j < CAMERAS_CNT; j++)
-		//				{
-		//					// Re project true positive back into all frames ( Inv Homography )
-		//					perspectiveTransform(curCrd, _curCrd, cameras[j]->homography.inv());
-		//					perspectiveTransform(nxtCrd, _nxtCrd, cameras[j]->homography.inv());
+						// Loop through all cameras
+						for (int j = 0; j < CAMERAS_CNT; j++)
+						{
+							// Re project true positive back into all frames ( Inv Homography )
+							perspectiveTransform(curCrd, _curCrd, cameras[j]->homography.inv());
+							perspectiveTransform(nxtCrd, _nxtCrd, cameras[j]->homography.inv());
 
-		//					// Down scale
-		//					_curCrd[0] = _curCrd[0] / 2;
-		//					_nxtCrd[0] = _nxtCrd[0] / 2;
+							// Down scale
+							_curCrd[0] = _curCrd[0] / 2;
+							_nxtCrd[0] = _nxtCrd[0] / 2;
 
-		//					// Store camera ID if 
-		//					// A) ball near/within field of view  B) coordinates of ball not (0,0,0)  C) camera ID not yet stored
-		//					if ((boundary.contains(_curCrd[0]) || boundary.contains(_nxtCrd[0])) && *(currCandidates[i]->coords3D.end() - 1) != Point3d() && !(std::find(cameraID.begin(), cameraID.end(), j) != cameraID.end())) {
-		//						cameraID.push_back(j);
-		//						tempCameraId.push_back(cameras[j]);
-		//					}
-		//					
-		//				}
-		//			}
-		//		}
-
-
-		//		for (auto cc : currCandidates)	if (cc->isRealBall)	cc->cameraVisible = tempCameraId;
-
-		//
-
-		//}
+							// Store camera ID if 
+							if (currCandidates[i]->coords3D.size() != 0)
+							// A) ball near/within field of view  B) coordinates of ball not (0,0,0)  C) camera ID not yet stored
+							if ((boundary.contains(_curCrd[0]) || boundary.contains(_nxtCrd[0])) && *(currCandidates[i]->coords3D.end() - 1) != Point3d() && !(std::find(cameraID.begin(), cameraID.end(), j) != cameraID.end())) {
+								cameraID.push_back(j);
+								tempCameraId.push_back(cameras[j]);
+							}
+							
+						}
+					}
+				}
+				
+				for (auto cc : currCandidates)	if (cc->isRealBall)	cc->cameraVisible = tempCameraId;
+		}
 
 		//=========================================================================================
 		double compareTrajectories_LastPoint (vector<Point2f> traj1, vector<Point2f> traj2) {

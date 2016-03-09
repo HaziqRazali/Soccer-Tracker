@@ -21,7 +21,7 @@ class xmlParser {
 		xmlParser(void) {}
 
 		//=========================================================================================
-		static int parseBallPositions (string fileName, vector<pair<int, Point>>& outVctr) { 
+		static int parseBallPositions(string fileName, vector<pair<int, Point>>& outVctr) {
 
 			outVctr.clear();
 

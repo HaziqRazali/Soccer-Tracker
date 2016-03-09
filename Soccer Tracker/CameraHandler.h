@@ -53,6 +53,7 @@ class CameraHandler {
 
 		//=========================================================================================
 		void addCamera(int idx, Point pos, double previewScale, Point3d _camCoords) {
+			
 			int id = cameras.size();
 			Camera* cam = new Camera();
 			cam->id = id;
