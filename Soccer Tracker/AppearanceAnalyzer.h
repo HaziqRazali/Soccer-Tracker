@@ -198,9 +198,13 @@ class AppearanceAnalyzer {
 			}
 		}
 
-		void segmentPlayer(vector<PlayerCandidate*> pCandidates, Rect overlappedRoi, Mat& _frame, int TID, Mat _mask) {
+		void segmentPlayer(vector<PlayerCandidate*> pCandidates, Rect _overlappedRoi, Mat& _frame, int TID, Mat _mask) {
 			
+			// Set limits
 			Rect bounds(0, 0, frame.cols, frame.rows);
+
+			// Set size of roi
+			Rect overlappedRoi = _overlappedRoi;
 
 			// Extract image of overlapping rect
 			Mat _crop		= frame(overlappedRoi & bounds).clone();
@@ -217,11 +221,11 @@ class AppearanceAnalyzer {
 			vector<Mat> crop_bgr;
 			split(crop, crop_bgr);
 
-			// Template match
+			// Run template matching
 			for (int i = 0; i < pCandidates.size(); i++)
 			{
 				// Estimate rect of candidate
-				Rect prevRect = Rect(0, 0, (10 * overlappedRoi.br().y / 540) + 30, (40 * overlappedRoi.br().y / 540) + 30) & limit;
+				Rect prevRect = Rect(0, 0, (10 * overlappedRoi.br().y / 540) + 25, (30 * overlappedRoi.br().y / 540) + 25) & limit;
 				
 				// Resize template to size of bounding box
 				Mat playerTmplate = tmplate[pCandidates[i]->teamID].clone();
@@ -263,25 +267,28 @@ class AppearanceAnalyzer {
 					// Set region around best match to 0
 					Mat roi = crop_bgr[j](Rect(tl, br));
 					roi.setTo(0);
+
+					Mat roii = crop(Rect(tl, br));
+					roii.setTo(0);
 				}
+
 				
 				// top left and bottom right for candidate bb
 				Point tl = Point(overlappedRoi.x + center.x - prevRect.width / 2, overlappedRoi.y + center.y - prevRect.height / 2);
 				Point br = Point(overlappedRoi.x + center.x + prevRect.width / 2, overlappedRoi.y + center.y + prevRect.height / 2);
 
 				Rect bb = Rect(tl, br);
-				rectangle(_frame, Rect(tl, br), CV_RGB(255,0,0), 1);
 				
 				// candidate feet
 				Point crd = Point(bb.x + bb.width/2, bb.y + bb.height);
 
 				// Update pCandidate
-				//*(pCandidates[i]->coords.end() - 1) = crd;
 				pCandidates[i]->curCrd = crd;
-				//*(pCandidates[i]->prevRects.end() - 1) = bb;
 				pCandidates[i]->curRect = bb;
 				pCandidates[i]->predictTime--;
 			}
+
+
 		}
 
 		void setLimit(Rect input, Rect reference) {

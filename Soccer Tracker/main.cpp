@@ -241,7 +241,6 @@ int main() {
 
 		int debugger = 0;
 
-
 		Ptr<BackgroundSubtractorMOG2> MOG2;
 		MOG2 = createBackgroundSubtractorMOG2();
 		MOG2->setShadowValue(0);
@@ -334,14 +333,8 @@ int main() {
 
 				erode(mask, mask, getStructuringElement(MORPH_RECT, Size(3, 3)));
 				dilate(mask, mask, getStructuringElement(MORPH_RECT, Size(3, 3)));*/
-
+				
 				Mat playerMask = mask.clone();
-
-				if (TID == 0)
-				{
-					imshow("BG", mask);
-					waitKey(1);
-				}
 
 				vector<Rect> players_cand;
 				vector<Point> ball_cand;
@@ -384,11 +377,12 @@ int main() {
 					tracker.drawTrackingMarks(frame, TID);
 				}
 
-				if (TID == 0)
+				/*if (TID == 3)
 				{
-					imshow("frame", frame);
-					waitKey(1);
-				}
+					char filename[40];
+					sprintf_s(filename, "frame_%d.png", globalFrameCount);
+					imwrite(filename, frame);
+				}*/
 				
 				#ifdef WRITE_VIDEO
 				vidWriter << frame;
@@ -440,7 +434,7 @@ int main() {
 			mcTracker.setFieldModel(model);
 			mcTracker.setCameras(allCameras);
 
-			namedWindow("modelView", CV_WINDOW_AUTOSIZE);
+			namedWindow("modelView", CV_WINDOW_NORMAL);
 			namedWindow("cameraView", CV_WINDOW_AUTOSIZE);
 			setMouseCallback("cameraView", _onMouse);
 

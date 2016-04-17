@@ -12,6 +12,7 @@
 #include <xutility>
 #include <algorithm>
 #include <fstream>
+#include <time.h>
 
 namespace st {
 
@@ -54,7 +55,8 @@ struct ProjCandidate {
 	Mat homography;					  // Camera homography matrix
 	
 	// Ball Info _____________________________________________________________
-	int ID;						      // Ball ID  
+	int ID, ID2;				      // Ball ID  
+	int teamID = 3;
 
 	vector<Point2f> coords, coordsKF; // 2D projected coordinates
 	vector<Point2f> coords_meters;    // 2D projected coordinates in meters
@@ -164,6 +166,55 @@ struct ProjCandidate {
 
 	}
 
+	void updatePlayer(PlayerCandidate* ti, int frameCnt, bool flipH) {
+
+		vector<Point2f> p_orig = vector<Point2f>(1);
+		vector<Point2f> p_proj = vector<Point2f>(1);
+
+		Point2f _coord;
+		Polygon _bound;
+
+		/********************************************************************************
+				Projects the measured 2D coordinates of playerCandidate ( frame t )
+		*********************************************************************************/
+
+		teamID = ti->teamID;
+
+		p_orig[0] = ti->curCrd;
+
+		// Upscale coordinates for projection onto top View ( 1920 x 1080 )
+		p_orig[0].x = p_orig[0].x * 2;
+		p_orig[0].y = p_orig[0].y * 2;
+
+		// If vertical flip
+		if (flipH) p_orig[0].x = 1920 - p_orig[0].x;
+
+		// Projection function
+		perspectiveTransform(p_orig, p_proj, homography);
+
+		_coord = p_proj[0];
+		_bound = Polygon(ti->curRect, homography);
+
+		Point2f _coordsKF = KF.process(_coord);
+
+		// Push back coordinate (pixel)
+		coords.push_back(_coord);
+		coordsKF.push_back(_coordsKF);
+
+		// Push back coordinate (convert pixel to meters)
+		coords_meters.push_back(Point2f(_coordsKF.x * 0.05464, _coordsKF.y * 0.06291));
+
+		/********************************************************************************
+		Others
+		*********************************************************************************/
+
+		//trackRatio = ti.trackRatio;
+		bounds.push_back(_bound);
+		frames.push_back(frameCnt);
+
+
+	}
+
 	//=============================================================================================
 	Point2f getLastPoint () {
 		return *(coords.end()-1);
@@ -192,8 +243,12 @@ class MultiCameraTracker {
 		vector<pair<Polygon, int>> marks;
 
 		vector<Scalar> colors;
+		vector<Scalar> teamColors;
 
 		vector<ProjCandidate*> currCandidates;
+		vector<ProjCandidate*> currPlayerCandidates[6];
+		vector<ProjCandidate*> updatedPlayerCand;
+
 		vector<vector<pair<Point,Point>>> result_final = vector<vector<pair<Point,Point>>>(6);
 
 		vector<Point3d> finalCoords;
@@ -224,12 +279,18 @@ class MultiCameraTracker {
 		//=========================================================================================
 		MultiCameraTracker (void) {
 			framesProcessed = 0;
+
 			colors.push_back(CV_RGB(128,0,0));
 			colors.push_back(CV_RGB(0,128,0));
 			colors.push_back(CV_RGB(0,0,128));
 			colors.push_back(CV_RGB(128,128,0));
 			colors.push_back(CV_RGB(128,0,128));
 			colors.push_back(CV_RGB(0,128,128));
+
+			teamColors.push_back(CV_RGB(255, 255, 255));
+			teamColors.push_back(CV_RGB(0, 0, 255));
+			teamColors.push_back(CV_RGB(0, 0, 0));
+			teamColors.push_back(CV_RGB(128,50,0));
 		}
 
 		//=========================================================================================
@@ -261,17 +322,16 @@ class MultiCameraTracker {
 			//#endif
 			
 			/********************************************************************************
-										Prepare for 3D Analysis
+										Prepare for Multi Camera Analysis (Ball)
 			*********************************************************************************/
 
 			vector<ProjCandidate*> used;
 			for (int i = 0; i < CAMERAS_CNT; i++) 
 			{
-				// UID of ball
+				// ID of ball
 				int candidateId = trackInfo[i].ballCandID;
 				if (candidateId == -1) { continue; }
 
-				// -- check current candidates
 				bool exists = false;
 
 				// Update (Only if currCandidates exists)
@@ -291,14 +351,13 @@ class MultiCameraTracker {
 				{
 					ProjCandidate* newCand = new ProjCandidate(candidateId, i, cameras[i]->camCoords, cameras[i]->homography);
 
-					// Projects ball coordinate onto the Top View.. Task -> Check if can remove cameras[i]->projVFlip
 					newCand->update(trackInfo[i], framesProcessed, cameras[i]->projHFlip);
 					currCandidates.push_back(newCand);
 					used.push_back(newCand);
 				}
 			}
 
-			// --- delete outdated candidates (?)
+			// --- delete currCandidate that is not updated (meaning lost)
 			vector<ProjCandidate*> toDelete;
 
 			for (auto c : currCandidates) 
@@ -316,6 +375,67 @@ class MultiCameraTracker {
 			}
 
 			toDelete.clear();
+
+			/********************************************************************************
+									Prepare for Multi Camera Analysis (Player)
+			*********************************************************************************/
+
+			// For each camera view
+			for (int i = 0; i < CAMERAS_CNT; i++)
+			{
+				vector<ProjCandidate*> used;
+
+				// Loop through all candidates of camera i
+				for (auto p : trackInfo[i].pCandidates)
+				{
+					// ID of player
+					int candidateID = p->id;					
+					bool exists = false;
+
+					// Update (Only if player_currCandidates exists)
+					for (auto pc : currPlayerCandidates[i])
+					{
+						if (pc->ID == candidateID)
+						{
+							used.push_back(pc);
+							pc->updatePlayer(p, framesProcessed, cameras[i]->projHFlip);
+							exists = true;
+							break;
+						}
+					}
+
+					// Create new currCandidates if no similar candidates exist
+					if (!exists)
+					{
+						ProjCandidate* newCand = new ProjCandidate(candidateID, i, cameras[i]->camCoords, cameras[i]->homography);
+
+						newCand->updatePlayer(p, framesProcessed, cameras[i]->projHFlip);
+						currPlayerCandidates[i].push_back(newCand);
+						used.push_back(newCand);
+					}
+				}
+
+				// --- delete currCandidate that is not updated (meaning lost)
+				vector<ProjCandidate*> toDelete;
+
+				for (auto pc : currPlayerCandidates[i])
+				{
+					if (find(used.begin(), used.end(), pc) == used.end())
+					{
+						toDelete.push_back(pc);
+					}
+				}
+
+				for (auto& obj : toDelete)
+				{
+					currPlayerCandidates[i].erase(remove(currPlayerCandidates[i].begin(), currPlayerCandidates[i].end(), obj), currPlayerCandidates[i].end());
+					delete obj;
+				}
+
+				toDelete.clear();
+
+			}
+
 			framesProcessed++;
 		}
 
@@ -367,15 +487,35 @@ class MultiCameraTracker {
 												3D DRAWING
 			*********************************************************************************/
 
-			//Display mainCandidates location and trajectory on the field model
+			// Display ball location and trajectory on the field model
 			Mat img = fieldModel.clone();
-			for (auto candidate : currCandidates)
-			{
-				// Indicate position
-				drawPoint(img, candidate, 10);
+			//for (auto candidate : currCandidates)
+			//{
+			//	// Indicate position
+			//	circle(img, candidate->getLastPoint(), 10, CV_RGB(0, 0, 0), -1);
+			//	circle(img, candidate->getLastPoint(), 10, CV_RGB(255, 0, 0), 2);
 
-				// Display Trajectory
-				//drawTraceFiltered(img, candidate);
+			//	char ID[40];
+			//	sprintf(ID, "%d", candidate->cameraID + 1);
+			//	putText(img, ID, candidate->getLastPoint() + Point2f(-40, 10), CV_FONT_HERSHEY_SIMPLEX, 1, CV_RGB(255, 0, 0), 2);
+
+			//	// Display Trajectory
+			//	//drawTraceFiltered(img, candidate);
+			//}
+
+			// Display player location and trajectory on the field model
+			/*for (int i = 0; i < CAMERAS_CNT; i++)
+			{
+				for (auto candidate : currPlayerCandidates[i])
+				{
+					drawPoint(img, candidate, 15, -1);
+				}
+			}*/
+
+			// Display player location
+			for (int i = 0; i < updatedPlayerCand.size(); i++)
+			{
+				drawPoint(img, updatedPlayerCand[i], 15, -1);
 			}
 
 			/*for (int i = 0; i < estimatedTrajectory.size(); i++)
@@ -384,33 +524,21 @@ class MultiCameraTracker {
 				int y = estimatedTrajectory[i].y;
 
 				circle(img, Point(x, y), 5, Scalar(0, 0, 255));
-			}*/
+			}
 
 			//circle(img, landingPos, 30, CV_RGB(0, 0, 0), 1);
 
-			//circle(img, Point(0, 0), 300, (0, 0, 0));
+			//circle(img, Point(0, 0), 300, (0, 0, 0));*/
 
 			//Display coordinates of true positive on the field model
 			for (auto real : getTruePositives())
 			{
 				if (real->coords3D.size() == 0) break;
-				double x = (real->coords3D.end()-1)->x;
-				double y = (real->coords3D.end()-1)->y;
-				double z = (real->coords3D.end()-1)->z;
+				double x = (real->coords3D.end() - 1)->x / 0.05464;
+				double y = (real->coords3D.end() - 1)->y / 0.06291;
 
-				// Convert meters back to pixels for display
-				char coordinate[40];
-				Point position = Point(x / 0.05464 + 10, y / 0.06291 + 10);
-
-				for (int i = 0; i < real->coords3D.size(); i++)
-				{
-					Point xy = Point(real->coords3D[i].x, real->coords3D[i].y);
-					circle(img, Point(xy.x / 0.05464, xy.y / 0.06291), 10, CV_RGB(0, 0, 0), 1);
-				}
-
-				// Display coordinates of ball in meters
-				sprintf(coordinate, "%.0f %.0f %.0f", x, y, z);
-				putText(img, coordinate, position, CV_FONT_HERSHEY_COMPLEX_SMALL, 1, Scalar(0, 0, 0));
+				circle(img, Point(x, y), 10, CV_RGB(0, 0, 0), -1);
+				circle(img, Point(x, y), 10, CV_RGB(255, 0, 0), 2);
 
 				break;
 			}
@@ -645,14 +773,28 @@ class MultiCameraTracker {
 		}
 
 		//=========================================================================================
-		inline void drawPoint (Mat& image, ProjCandidate* cand, int rad = 1) {
+		inline void drawPoint (Mat& image, ProjCandidate* cand, int rad = 1, int thickness = 1) {
 
-			circle(image, cand->getLastPoint(), rad, colors[cand->cameraID], 1, CV_AA);
-			
-			char label[40];
-			sprintf(label, "%d %d", cand->coords);
-			Point textCoord = Point((cand->coordsKF.end() - 1)->x + 20, (cand->coordsKF.end() - 1)->x + 20);
-			putText(image, label, textCoord, CV_FONT_HERSHEY_COMPLEX_SMALL, 2, Scalar(255, 255, 255));
+			if (cand->coords.size() < 1 || cand->coords.size() > 2000) return;
+
+			if (thickness == 1) circle(image, *(cand->coords.end()-1), rad, colors[cand->cameraID], 1, CV_AA);
+			if (thickness == -1) circle(image, *(cand->coords.end() - 1), rad, teamColors[cand->teamID], thickness, CV_AA);
+
+			/*char ID[40];
+			sprintf(ID, "%d", cand->cameraID + 1);
+			putText(image, ID, cand->getLastPoint() + Point2f(-10,10), CV_FONT_HERSHEY_SIMPLEX, 1, CV_RGB(255, 0, 0), 2);*/
+		}
+
+		//=========================================================================================
+		inline void drawBall(Mat& image, ProjCandidate* cand, int rad = 1, int thickness = 1) {
+
+			if (cand->coords.size() < 1 || cand->coords.size() > 2000) return;
+
+			if (thickness == -1) circle(image, *(cand->coords.end() - 1), rad, colors[cand->cameraID], thickness, CV_AA);
+
+			/*char ID[40];
+			sprintf(ID, "%d %d", cand->ID, cand->ID2);
+			putText(image, ID, cand->getLastPoint(), CV_FONT_HERSHEY_SIMPLEX, 2, CV_RGB(0, 0, 0));*/
 		}
 
 		//=========================================================================================
@@ -688,7 +830,7 @@ class MultiCameraTracker {
 
 		//=========================================================================================
 		void identifyTruePositive(ofstream& file, int globalFrameCount) {
-
+			
 			// return if no detections
 			if (currCandidates.size() <= 1)
 			{
@@ -700,7 +842,7 @@ class MultiCameraTracker {
 			ProjCandidate *resCand1 = NULL, *resCand2 = NULL;
 
 			/***************************************************
-							 Triangulation
+						Epipolar Geometry for Ball
 			****************************************************/
 			for (unsigned i = 0; i < currCandidates.size() - 1; i++)
 			{
@@ -739,6 +881,99 @@ class MultiCameraTracker {
 			{
 				if (globalFrameCount >= 358) file << 0 << " " << framesProcessed << endl;
 			}
+
+			// OPTIMIZE THIS SHIT
+			vector<ProjCandidate*> allPlayerCandidates;
+			allPlayerCandidates.reserve(currPlayerCandidates[0].size() + currPlayerCandidates[1].size() + currPlayerCandidates[2].size() + currPlayerCandidates[3].size() + currPlayerCandidates[4].size() + currPlayerCandidates[5].size()); // preallocate memory
+			allPlayerCandidates.insert(allPlayerCandidates.end(), currPlayerCandidates[0].begin(), currPlayerCandidates[0].end());
+			allPlayerCandidates.insert(allPlayerCandidates.end(), currPlayerCandidates[1].begin(), currPlayerCandidates[1].end());
+			allPlayerCandidates.insert(allPlayerCandidates.end(), currPlayerCandidates[2].begin(), currPlayerCandidates[2].end());
+			allPlayerCandidates.insert(allPlayerCandidates.end(), currPlayerCandidates[3].begin(), currPlayerCandidates[3].end());
+			allPlayerCandidates.insert(allPlayerCandidates.end(), currPlayerCandidates[4].begin(), currPlayerCandidates[4].end());
+			allPlayerCandidates.insert(allPlayerCandidates.end(), currPlayerCandidates[5].begin(), currPlayerCandidates[5].end());
+
+			/***************************************************
+						Epipolar Geometry for Player
+			****************************************************/
+
+			//const clock_t begin_time = clock();
+
+			ProjCandidate* cand1 = NULL;
+			ProjCandidate* cand2 = NULL;
+			
+			updatedPlayerCand = vector<ProjCandidate*>();
+			vector<int> used;
+			unsigned i, j;
+
+			for (i = 0; i < allPlayerCandidates.size() - 1; i++)
+			{
+				// If candidate already used
+				if (find(used.begin(), used.end(), i) != used.end()) continue;
+
+				// Else initialize
+				cand1 = allPlayerCandidates[i];
+				vector<double> distance;
+
+				Point2f cand1Coords, cand2Coords;
+
+				int offset = i + 1;
+				// Loop through remaining players
+				for (j = i + 1; j < allPlayerCandidates.size(); j++)
+				{
+					// If candidate already used
+					if (find(used.begin(), used.end(), j) != used.end())
+					{
+						distance.push_back(100);
+						continue;
+					}
+
+					else
+					{
+						// Compute distance
+						cand2 = allPlayerCandidates[j];
+
+						cand1Coords = Point2f((cand1->coords_meters.end() - 1)->x, (cand1->coords_meters.end() - 1)->y);
+						cand2Coords = Point2f((cand2->coords_meters.end() - 1)->x, (cand2->coords_meters.end() - 1)->y);
+
+						distance.push_back(norm(cand1Coords - cand2Coords));
+					}
+				}
+
+				// If last player
+				if (distance.size() == 0)
+				{
+					updatedPlayerCand.push_back(cand1);
+					used.push_back(i);
+				}
+				
+				// Get nearest player
+				else
+				{
+					float	min_distance = *min_element(distance.begin(), distance.end());
+					int		min_index = min_element(distance.begin(), distance.end()) - distance.begin();
+					
+					// Update player pair
+					if (min_distance < 5)
+					{
+						cand1->ID = min(cand1->ID, cand2->ID);
+						cand1->ID2 = max(cand1->ID, cand2->ID);
+						updatedPlayerCand.push_back(cand1);
+
+						used.push_back(i); 
+						used.push_back(min_index + offset);
+					}
+
+					else
+					{
+						updatedPlayerCand.push_back(cand1);
+						used.push_back(i);
+					}
+				}
+
+				//cout << (*(updatedPlayerCand.end() - 1))->teamID;
+			}
+
+			//cout << "pc size " << allPlayerCandidates.size() << " used size " << used.size() << " upc size " << updatedPlayerCand.size() << endl;
 		}
 
 		//=========================================================================================

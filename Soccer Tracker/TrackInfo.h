@@ -3,6 +3,7 @@
 #include <cv.h>
 #include <opencv2\opencv.hpp>
 #include <vector>
+#include "PlayerCandidate.h"
 
 namespace st {
 
@@ -25,18 +26,26 @@ struct TrackInfo {
 		bool allowTracking;
 		bool current;
 
-		vector<pair<Point, Point>> results;
+		/********************************************************************************
+										Player Information
+		*********************************************************************************/
+		vector<PlayerCandidate*> pCandidates;
 
 
 		//=========================================================================================
-		void set (int ballID = -1, Rect rect = Rect(), Point coord = Point(-1,-1), Point predCoord = Point(), Point GTcoord = Point(-1, -1), vector<pair<Point,Point>> results = vector<pair<Point,Point>>()) {
+		void set (int ballID = -1, Rect rect = Rect(), Point coord = Point(-1,-1), Point predCoord = Point(), Point GTcoord = Point(-1, -1), vector<PlayerCandidate*> _pCandidates = vector<PlayerCandidate*>()) {
+			
+			// Ball info
 			this->ballCandID = ballID;
 			this->coord = coord;
 			this->predCoord = predCoord;
 			this->rect = rect;
 
 			this->GTcoord = GTcoord;
-			this->results = results;
+			
+			// Player info
+			pCandidates = _pCandidates;
+			
 		}
 
 		//=========================================================================================

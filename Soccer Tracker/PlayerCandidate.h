@@ -44,7 +44,7 @@ class PlayerCandidate {
 		bool ballAttached;
 
 		//=========================================================================================
-		PlayerCandidate (int time, Point crd, Rect rect, int teamID/*, bool Occlusion*/) {
+		PlayerCandidate (int time, Point crd, Rect rect, int teamID, bool Occlusion) {
 			this->id = ID_counter++ * ID_groups_cnt + ID_shift;
 			lifeTime = 0;
 
@@ -61,7 +61,7 @@ class PlayerCandidate {
 			this->curCrd = crd;
 			this->curRect = rect;
 			this->teamID = teamID;
-			//this->Occlusion = Occlusion;
+			this->Occlusion = Occlusion;
 			
 			updateTime = lifeTime;
 			predictTime = 0;

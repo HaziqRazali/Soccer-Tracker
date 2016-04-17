@@ -138,14 +138,15 @@ class Tracker {
 		//=========================================================================================
 		TrackInfo getTrackInfo () {
 
+
 			if (mainCandidate == NULL || mainCandidate->getState() == 1) 
 			{
-				trackInfo.set(-1, Rect(), Point(-1, -1), Point(), givenTrajectory[curFrame + 2]);
+				trackInfo.set(-1, Rect(), Point(-1, -1), Point(), givenTrajectory[curFrame + 2], pCandidates);
 			} 
 			
 			else 
 			{
-				trackInfo.set(mainCandidate->id, mainCandidate->curRect, mainCandidate->curCrd, mainCandidate->predCrd, givenTrajectory[curFrame + 2]);
+				trackInfo.set(mainCandidate->id, mainCandidate->curRect, mainCandidate->curCrd, mainCandidate->predCrd, givenTrajectory[curFrame + 2], pCandidates);
 			}
 
 			return trackInfo;
@@ -254,10 +255,6 @@ class Tracker {
 					//file << p.x << " " << p.y << " " << mainCandidate->curCrd.x << " " << mainCandidate->curCrd.y << endl;
 				} 
 				
-
-
-
-
 				/************************************************
 								Candidate Not Found
 				*************************************************/
@@ -327,10 +324,8 @@ class Tracker {
 		void processFrame(Mat& frame, vector<Point>& ball_cand, vector<Rect>& player_cand, vector<ProjCandidate*> Ball, int TID, int processedFrames, ofstream& file, Mat mask) {
 
 			this->Ball = Ball;
-
 			trackPlayers(player_cand, frame, TID, mask);
 			trackBall(frame, ball_cand, Ball, TID, processedFrames);
-
 			drawTrajectory(frame, 2);
 			updateMetric(file, processedFrames);
 
@@ -345,8 +340,6 @@ class Tracker {
 		//=========================================================================================
 		static bool compareMerge_Player (PlayerCandidate* c1, PlayerCandidate* c2) {
 			
-
-
 			// --- check if two players need to be merged
 			return (c1->curCrd == c2->curCrd && !c1->Occlusion && !c2->Occlusion);
 		}
@@ -597,14 +590,14 @@ class Tracker {
 				}
 			}
 
-			//// If ball is being tracked but is not in region - Disable tracker and put at initialization stage
-			//if (Tracking == 1 && !region[TID].contains(lastBallLoc))
-			//{
-			//	ball_removeLostCandidates();
-			//	ball_removeStuckedCandidates(10);
-			//	trackerState = BALL_NOT_FOUND;
-			//	return;
-			//}
+			if (Ball.size() != 0)
+			{
+				if (Ball[0]->coords3D.size() != 0 && !region[TID].contains(lastBallLoc)) return;
+			}
+
+			//if (region[TID].contains(lastBallLoc)) Location = TID;
+			//if (Ball.size() == 0) Location = 0;
+			//if (!region[TID].contains(lastBallLoc) && Location != 0) return;
 
 			switch (trackerState) {
 
@@ -675,13 +668,11 @@ class Tracker {
 
 					for (auto bc : bCandidates) 
 					{
-						// Performs tracking of all bCandidates and classifies each as Tracking / Searching... Updates lifeTime of Ball [ for removeOutdatedCandidates function ]
 						ball_updateBallCandidate(bc, frame, TID);
 					}
 										
 					ball_removeLostCandidates();
 					ball_removeStuckedCandidates(0.4);
-					//done:
 					ball_chooseMainCandidate();
 
 					if (mainCandidate != NULL) 
@@ -814,10 +805,7 @@ class Tracker {
 						bc->switchState(curFrame, BALL_STATE::ATTACHED_TO_PLAYER);
 						break;
 					}			
-
-					bc->predCrd = bc->curCrd;										// POSITION AT FRAME T-1				
-					bc->predCrd = Point(bc->KF.predict().x, bc->KF.predict().y);	// PREDICT FOR FRAME T
-
+					
 					/**********************************************************
 					No nearest player - Continue. Correlate and search for best match
 					***********************************************************/
@@ -836,9 +824,9 @@ class Tracker {
 					Point nCrd   = matchPoints[0];
 					double nProb = matchProbs[0];
 
-					bc->predCrd = bc->KF.correct(nCrd);								// UPDATE FRAME T
-					bc->predCrd = Point(bc->KF.predict().x, bc->KF.predict().y);	// PREDICT FOR FRAME T+1
-					bc->predCrd = Point(bc->KF.predict().x, bc->KF.predict().y);
+					//bc->predCrd = bc->KF.correct(nCrd);								// UPDATE FRAME T
+					//bc->predCrd = Point(bc->KF.predict().x, bc->KF.predict().y);	// PREDICT FOR FRAME T+1
+					//bc->predCrd = Point(bc->KF.predict().x, bc->KF.predict().y);
 					
 					if (nProb < M1_loose_threshold) 
 					{
@@ -907,7 +895,7 @@ class Tracker {
 				//_____________________________________________________________
 				case BALL_STATE::ATTACHED_TO_PLAYER : {
 				//*************************************************************
-
+					
 					vector<double> nearbyP_Dist;
 					vector<int> nearbyP_Idx;
 
@@ -936,7 +924,7 @@ class Tracker {
 								bc->curRad = Point(pRect.width/2, pRect.height/2) + attachRad;
 							#endif
 							bc->fitFrame();
-							//bc->curAppearM = 0.0;
+							bc->curAppearM = 0.0;
 
 							/**********************************************************
 										Prepare and perform template matching
@@ -964,7 +952,7 @@ class Tracker {
 							vector<double> matchProbs;
 
 							// Correlate.. Task -> include distance constraint ( Use filter )
-							appearAnalyzer.getMatches(bc, 3, matchPoints, matchProbs, TID);
+							appearAnalyzer.getMatches(bc, 2, matchPoints, matchProbs, TID);
 
 							vector<Point>  nCrds = matchPoints;
 							vector<double> nProbs = matchProbs;
@@ -1030,7 +1018,7 @@ class Tracker {
 							break;
 						}
 					}
-
+					
 					#ifdef WINDOW_PERSPECTIVE
 						bc->curRad = perspectiveRad(defRad, bc->curCrd);
 					#else
@@ -1157,7 +1145,8 @@ class Tracker {
 
 		//=========================================================================================
 		void trackPlayers (vector<Rect>& newCandidates, Mat& frame, int TID, Mat mask) {
-			
+			static int count = 0;
+
 			appearAnalyzer.setFrame(frame);
 
 			// calculate coords for all new candidates
@@ -1187,7 +1176,9 @@ class Tracker {
 					// --- Kalman Filter
 					#ifdef PLAYERS_KF
 					p->KF.predict(); // Predict based on last position
+
 					Point cc = p->KF.correct(nCrd); // Correct based on prediction and measurement (nCrd)
+
 					p->setCrd(cc, false);
 					#else
 					p->setCrd(nCrd, false);
@@ -1195,10 +1186,11 @@ class Tracker {
 
 					// Set newly detected rectangle as curRect
 					Rect nRect = newCandidates[minIdx];
+					/*int pCandidate_teamID = appearAnalyzer.getTeamID(newCandidates[minIdx]);
+					p->teamID = pCandidate_teamID;*/
 					p->setRect(nRect);
 
-					// Reset occlusion status
-					p->Occlusion = false;
+					p->Occlusion = true;
 
 					// Candidate is used
 					int idx = std::distance(newCandCoords.begin(), std::find(newCandCoords.begin(), newCandCoords.end(), nCrd));
@@ -1215,66 +1207,65 @@ class Tracker {
 					#endif // PLAYERS_KF
 					p->setCrd(nCrd, true);
 
-					// Reset occlusion status
-					p->Occlusion = false;
+					p->Occlusion = true;
 
 					// Set previously detected rectangle as curRect
 					p->setRect(nCrd);
 				}
 			}
-
-			//----- Segment merged players
-			for (int i = 0; i < pCandidates.size(); i++)
-			{
-				// Get current Rect data
-				Rect boundBox     = pCandidates[i]->curRect;
-				int boundBox_area = pCandidates[i]->curRect.area();
-
-				// Initialize Containers
-				vector<PlayerCandidate*> temp_pCandidates;	temp_pCandidates.push_back(pCandidates[i]);
-				vector<Rect> overlappingBB; 				overlappingBB.push_back(pCandidates[i]->curRect);
-
-				// Loop through other players
-				for (int j = 0; j < pCandidates.size(); j++)
-				{
-					// Same player or not enough data to process
-					if (i == j || pCandidates[j]->prevRects.size() < 2) continue;
-
-					// Get current player data
-					Point pCrd = Point(pCandidates[j]->curCrd.x, pCandidates[j]->curCrd.y - pCandidates[j]->curRect.height / 2);
-					int pArea  = (pCandidates[j]->prevRects.end() - 2)->area();
-
-					// Center of player position is inside of bounding box and their areas differ significantly
-					if (boundBox.contains(pCrd) && boundBox_area > 1.7*pArea)
-					{
-						temp_pCandidates.push_back(pCandidates[j]);
-						overlappingBB.push_back(pCandidates[j]->curRect);
-					}
-				}
-
-				// If 2 players are inside
-				if (temp_pCandidates.size() > 1)
-				{
-					Rect temp = mergeBoundingBoxes(overlappingBB);
-					appearAnalyzer.segmentPlayer(temp_pCandidates, temp, frame, TID, mask);
-				}
-			}
-
-			// ----- merge players -----
-			mergePlayers(frame);
-
+			
 			// ----- add new players -----
 			for (unsigned i = 0; i < usedCandidates.size(); i++)
 			{
-				if (usedCandidates[i] == 0) 
+				// Newly detected candidates
+				if (usedCandidates[i] == 0)
 				{
 					// Get team
 					int pCandidate_teamID = appearAnalyzer.getTeamID(newCandidates[i]);
 					
 					// Construct player obj
-					pCandidates.push_back(new PlayerCandidate(curFrame, newCandCoords[i], newCandidates[i], appearAnalyzer.getTeamID(newCandidates[i])));
+					pCandidates.push_back(new PlayerCandidate(curFrame, newCandCoords[i], newCandidates[i], appearAnalyzer.getTeamID(newCandidates[i]), true));
 				}
 			}
+
+			// ----- Identify players under occlusion
+			//for (int i = 0; i < pCandidates.size(); i++)
+			//{
+			//	auto cand1 = pCandidates[i];
+
+			//	vector<PlayerCandidate*> playersOccluded;
+			//	vector<Rect> playersRect; 		
+			//	vector<int> usedID;
+
+			//	playersOccluded.push_back(cand1);
+			//	playersRect.push_back(cand1->curRect);
+			//	usedID.push_back(i);
+
+			//	// Loop through other players
+			//	for (int j = 0; j < pCandidates.size(); j++)
+			//	{
+			//		// Same player or not enough data to process
+			//		if (i == j || pCandidates[j]->prevRects.size() < 2) continue;
+
+			//		auto cand2 = pCandidates[j];
+			//		Point cand2Crd = Point(cand2->curCrd.x, cand2->curCrd.y - cand2->curRect.height / 2);
+
+			//		// Center of other player is inside of current player and their areas differ significantly
+			//		if (cand1->curRect.contains(cand2Crd)/* && cand1->curRect.area() > 1.7 * cand2->curRect.area()*/)
+			//		{
+			//			playersOccluded.push_back(pCandidates[j]);
+			//			playersRect.push_back(pCandidates[j]->curRect);
+			//			usedID.push_back(j);
+			//		}
+			//	}
+
+			//	// Solve for Occlusion
+			//	if (playersOccluded.size() > 1)
+			//		appearAnalyzer.segmentPlayer(playersOccluded, mergeBoundingBoxes(playersRect), frame, TID, mask);
+			//}
+
+			// ----- merge players -----
+			mergePlayers(frame);
 
 			// ----- update info for all players -----
 			for (auto p : pCandidates) 
@@ -1298,19 +1289,21 @@ class Tracker {
 
 		//=========================================================================================
 																  /*nearbyP_Idx,          nearbyP_Dist*/
-		void getNearestPlayersVctr (BallCandidate* bc, vector<int>& pIndexes, vector<double>& pDistance, double maxDist = numeric_limits<double>::max()) {
+		void getNearestPlayersVctr (BallCandidate* bc, vector<int>& pIndexes, vector<double>& pDistance, double maxDist = numeric_limits<double>::max(), vector<int>& pID = vector<int>()) {
 			
 			// !!! add priority
 			pIndexes.clear();
 			pDistance.clear();
 
 			vector<Rect> pRects(pCandidates.size());
+			vector<int> _pID(pCandidates.size());
 			vector<double> pDistance_all(pCandidates.size());
 
 			// pRect = container for pCandidate
 			for (unsigned i = 0; i < pCandidates.size(); i++) 
 			{
 				pRects[i] = pCandidates[i]->curRect;
+				_pID[i] = pCandidates[i]->id;
 			}
 
 			// Get distance from current candidate to all player rectangles
@@ -1323,6 +1316,7 @@ class Tracker {
 				{
 					pDistance.push_back(pDistance_all[i]);
 					pIndexes.push_back(i);
+					pID.push_back(_pID[i]);
 				}
 			}
 		}
@@ -1626,12 +1620,6 @@ class Tracker {
 				return;
 			}
 
-			//Height of ball ( but frame t - 1 )
-			float height = 0;
-			for (int i = 0; i < Ball.size(); i++)	if (TID == Ball[i]->cameraID)	if (Ball[i]->coords3D.size() != 0) height = (Ball[i]->coords3D.end() - 1)->z;
-
-			if (height == 0) return;
-
 			// draw track marks of mainCandidate
 			unsigned s = unsigned(max(double(bc->coords.size())-25, 1.0));
 			for (unsigned i = s; i < bc->coords.size(); i++) 
@@ -1661,17 +1649,23 @@ class Tracker {
 			*********************************************************************************/
 
 			// Track ratio
-			double trackRatio = double(bc->getStateDuration(BALL_STATE::TRACKING)) / bc->lifeTime;
+			//double trackRatio = double(bc->getStateDuration(BALL_STATE::TRACKING)) / bc->lifeTime;
 
-			//Rect box = Rect(Point(bc->curCrd.x - 20, bc->curCrd.y - 20), Point(bc->curCrd.x + 20, bc->curCrd.y + 20));
+			Rect box = Rect(Point(bc->curCrd.x - 20, bc->curCrd.y - 20), Point(bc->curCrd.x + 20, bc->curCrd.y + 20));
 
-			// Ball state
-			rectangle(frame, bc->curRect, CV_RGB(255, 255, 0)); // bc->curRect
+			//// Ball state
+			rectangle(frame, box, CV_RGB(255, 0, 0)); // bc->curRect
+
+			////Height of ball ( but frame t - 1 )
+			float height = 0;
+			for (int i = 0; i < Ball.size(); i++)	if (TID == Ball[i]->cameraID)	if (Ball[i]->coords3D.size() != 0) height = (Ball[i]->coords3D.end() - 1)->z;
+
+			if (height == 0) return;
 
 			// Display text
 			char label[40];
-			sprintf(label, "%2.2f", height, trackRatio/*, bc->id, Ball.size()*//*, bc->curAppearM, Ball.size()*/);
-			putText(frame, label, Point((bc->coordsKF.end() - 1)->x + 40, (bc->coordsKF.end() - 1)->y + 20), CV_FONT_HERSHEY_COMPLEX_SMALL, 2, CV_RGB(255, 255, 255));
+			sprintf(label, "%2.2f", height/*, bc->id, Ball.size()*//*, bc->curAppearM, Ball.size()*/);
+			putText(frame, label, Point((bc->coordsKF.end() - 1)->x + 40, (bc->coordsKF.end() - 1)->y + 20), CV_FONT_HERSHEY_SIMPLEX, 3, CV_RGB(255, 0, 0), 2);
 
 		}
 
@@ -1834,7 +1828,7 @@ class Tracker {
 					toDelete.push_back(j);
 				}
 
-				pCandidates.push_back(new PlayerCandidate(curFrame, mergedCrd, mergedRect, mergedID));
+				pCandidates.push_back(new PlayerCandidate(curFrame, mergedCrd, mergedRect, mergedID, true));
 			}
 
 			// Delete one of the pairs
