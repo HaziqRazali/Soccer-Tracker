@@ -59,7 +59,7 @@ class BackGroundRemover {
 		}
 
 		//=========================================================================================
-		Mat processFrame (Mat& frame) {
+		Mat processFrame (Mat& frame, int TID) {
 
 			normalizeImage(frame, normalizedFrame);
 
@@ -67,7 +67,7 @@ class BackGroundRemover {
 				smoothImage(normalizedFrame, smoothSize);
 			}
 
-			HistMethod(normalizedFrame, resultMask, true);
+			HistMethod(normalizedFrame, resultMask, true, TID);
 
 			if (applyMorphologic) {
 				applyMorphological(resultMask, resultMask);
@@ -95,7 +95,7 @@ class BackGroundRemover {
 		}
 
 		//=========================================================================================
-		void HistMethod (Mat& frame, Mat& binMask, bool withAccumulator = true) {
+		void HistMethod (Mat& frame, Mat& binMask, bool withAccumulator = true, int TID = 0) {
 			
 			// calculate hist for green channel of normalized image
 			MatND histG;
@@ -111,13 +111,63 @@ class BackGroundRemover {
 
 			MatND smoothedHistG = Histogrammer::filterHist(histG);
 			MatND histMask = Histogrammer::getHistMask(smoothedHistG);
+
 			multiply(histG, histMask, histG);
 			binMask = Histogrammer::backProj(frame, histG, 1, true);
 
-			//imshow("m", binMask);
-			//imshow("s", getSkeleton(binMask));
+			//if (TID == 3)
+			//{
+			//	cv::Mat my_histogram = histMask;
+			//	cv::FileStorage fs("my_histogram_file.yml", cv::FileStorage::WRITE);
+			//	//if (!fs.isOpened()) { std::cout << "unable to open file storage!" << std::endl; return; }
+			//	fs << "my_histogram" << my_histogram;
+			//	fs.release();
+			//	waitKey(0);
+			//}
+
+			/*IplImage* Iplimg = new IplImage(binMask);
+
+			CvHistogram *hist = NULL;
+			cvCalcHist(&Iplimg, hist, 0, 0);
+			IplImage* imgHistRed = DrawHistogram(hist);
+
+			cvShowImage("Red", imgHistRed);
+			waitKey(0);*/
+
+			/*imshow("m", binMask);
+			imshow("s", getSkeleton(binMask));*/
 		}
 
+		//=========================================================================================
+		/*IplImage* DrawHistogram(CvHistogram *hist, float scaleX = 1, float scaleY = 1)
+		{
+			float histMax = 0;
+			cvGetMinMaxHistValue(hist, 0, &histMax, 0, 0);
+			IplImage* imgHist = cvCreateImage(cvSize(256 * scaleX, 64 * scaleY), 8, 1);
+			cvZero(imgHist);
+
+			for (int i = 0; i<255; i++)
+			{
+				float histValue = *(hist->mat.data.ptr + i);
+
+				float nextValue = *(hist->mat.data.ptr + 1 + i);
+
+				CvPoint pt1 = cvPoint(i*scaleX, 64 * scaleY);
+				CvPoint pt2 = cvPoint(i*scaleX + scaleX, 64 * scaleY);
+				CvPoint pt3 = cvPoint(i*scaleX + scaleX, (64 - nextValue * 64 / histMax)*scaleY);
+
+				CvPoint pt4 = cvPoint(i*scaleX, (64 - histValue * 64 / histMax)*scaleY);
+
+				int numPts = 5;
+
+				CvPoint pts[] = { pt1, pt2, pt3, pt4, pt1 };
+
+				cvFillConvexPoly(imgHist, pts, numPts, cvScalar(255));
+			}
+
+			return imgHist;
+		}*/
+		
 		//=========================================================================================
 		Mat getSkeleton (Mat& img) { // unused feature (time consuming)
 			Mat skeleton(img.size(), CV_8UC1, Scalar(0));

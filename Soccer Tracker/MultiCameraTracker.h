@@ -489,58 +489,33 @@ class MultiCameraTracker {
 
 			// Display ball location and trajectory on the field model
 			Mat img = fieldModel.clone();
-			//for (auto candidate : currCandidates)
-			//{
-			//	// Indicate position
-			//	circle(img, candidate->getLastPoint(), 10, CV_RGB(0, 0, 0), -1);
-			//	circle(img, candidate->getLastPoint(), 10, CV_RGB(255, 0, 0), 2);
+			for (auto candidate : currCandidates)
+			{
+				// Indicate position
+				circle(img, candidate->getLastPoint(), 10, CV_RGB(0, 0, 0), -1);
+				circle(img, candidate->getLastPoint(), 10, CV_RGB(255, 0, 0), 2);
 
-			//	char ID[40];
-			//	sprintf(ID, "%d", candidate->cameraID + 1);
-			//	putText(img, ID, candidate->getLastPoint() + Point2f(-40, 10), CV_FONT_HERSHEY_SIMPLEX, 1, CV_RGB(255, 0, 0), 2);
+				char ID[40];
+				sprintf(ID, "%d", candidate->cameraID + 1);
+				putText(img, ID, candidate->getLastPoint() + Point2f(-40, 10), CV_FONT_HERSHEY_SIMPLEX, 1, CV_RGB(255, 0, 0), 2);
 
-			//	// Display Trajectory
-			//	//drawTraceFiltered(img, candidate);
-			//}
+				// Display Trajectory
+				//drawTraceFiltered(img, candidate);
+			}
 
 			// Display player location and trajectory on the field model
-			/*for (int i = 0; i < CAMERAS_CNT; i++)
+			for (int i = 0; i < 6; i++)
 			{
 				for (auto candidate : currPlayerCandidates[i])
 				{
 					drawPoint(img, candidate, 15, -1);
 				}
-			}*/
+			}
 
 			// Display player location
 			for (int i = 0; i < updatedPlayerCand.size(); i++)
 			{
 				drawPoint(img, updatedPlayerCand[i], 15, -1);
-			}
-
-			/*for (int i = 0; i < estimatedTrajectory.size(); i++)
-			{
-				int x = estimatedTrajectory[i].x;
-				int y = estimatedTrajectory[i].y;
-
-				circle(img, Point(x, y), 5, Scalar(0, 0, 255));
-			}
-
-			//circle(img, landingPos, 30, CV_RGB(0, 0, 0), 1);
-
-			//circle(img, Point(0, 0), 300, (0, 0, 0));*/
-
-			//Display coordinates of true positive on the field model
-			for (auto real : getTruePositives())
-			{
-				if (real->coords3D.size() == 0) break;
-				double x = (real->coords3D.end() - 1)->x / 0.05464;
-				double y = (real->coords3D.end() - 1)->y / 0.06291;
-
-				circle(img, Point(x, y), 10, CV_RGB(0, 0, 0), -1);
-				circle(img, Point(x, y), 10, CV_RGB(255, 0, 0), 2);
-
-				break;
 			}
 
 			// For visual debugging
@@ -559,7 +534,7 @@ class MultiCameraTracker {
 			//}
 
 			// Save track Data
-			saveTrackData();
+			//saveTrackData();
 
 			modelPreview = img;
 
@@ -577,26 +552,25 @@ class MultiCameraTracker {
 		}
 
 		//=========================================================================================
+		//void saveTrackData() {
 
-		void saveTrackData() {
+		//	static ofstream outFile;
+		//	static stringstream sstm;
+		//	static bool Switch = false;
 
-			static ofstream outFile;
-			static stringstream sstm;
-			static bool Switch = false;
+		//	// Initialize file name (one time)
+		//	if (Switch == false)
+		//	{
+		//		sstm.str("");
+		//		sstm << "3D Data " << ".txt";
+		//		outFile.open(sstm.str());
 
-			// Initialize file name (one time)
-			if (Switch == false)
-			{
-				sstm.str("");
-				sstm << "3D Data " << ".txt";
-				outFile.open(sstm.str());
+		//		Switch = true;
+		//	}
+		//	
+		//	outFile << finalPoint3D.x << " " << finalPoint3D.y << " " << finalPoint3D.z << endl;
 
-				Switch = true;
-			}
-			
-			outFile << finalPoint3D.x << " " << finalPoint3D.y << " " << finalPoint3D.z << endl;
-
-		}
+		//}
 
 		//=========================================================================================
 		
@@ -682,7 +656,7 @@ class MultiCameraTracker {
 						finalCoords.push_back(finalPoint3D);
 					}
 
-					// If finalPoint3D != 0, opposite camera will then predict its 2D position in meterts
+					// If finalPoint3D != 0, opposite camera will then predict its 2D position in meters
 					for (int i = 0; i < tempBall[0]->cameraVisible.size(); i++)
 					{
 						if (tempBall[0]->cameraVisible[i]->id != tempBall[0]->cameraID)
@@ -719,47 +693,47 @@ class MultiCameraTracker {
 		}
 
 		//=========================================================================================
-		void establishTrajectory(vector<Point3d> coords) {
+		//void establishTrajectory(vector<Point3d> coords) {
 
-			// Position of ball in meters
-			Point3d currentPos	= *(coords.end() - 1);
-			Point3d prevPos		= *(coords.end() - 2);
+		//	// Position of ball in meters
+		//	Point3d currentPos	= *(coords.end() - 1);
+		//	Point3d prevPos		= *(coords.end() - 2);
 
-			// Ball velocity m/f
-			velocity = currentPos - prevPos;
-			
-			// Ball velocity m/s
-			velocity = velocity * 25;
+		//	// Ball velocity m/f
+		//	velocity = currentPos - prevPos;
+		//	
+		//	// Ball velocity m/s
+		//	velocity = velocity * 25;
 
-			// Landing time in seconds
-			landingTime = abs(2 * velocity.z / 9.81);
+		//	// Landing time in seconds
+		//	landingTime = abs(2 * velocity.z / 9.81);
 
-			landingPos = Point(velocity.x * landingTime + currentPos.x, velocity.y * landingTime + currentPos.y);
-			landingPos = Point(landingPos.x * 18.3, landingPos.y * 15.9);
+		//	landingPos = Point(velocity.x * landingTime + currentPos.x, velocity.y * landingTime + currentPos.y);
+		//	landingPos = Point(landingPos.x * 18.3, landingPos.y * 15.9);
 
-			cout << landingPos << endl;
-			
-			// Landing time in frames
-			int landingTime_f = landingTime * 25;
+		//	cout << landingPos << endl;
+		//	
+		//	// Landing time in frames
+		//	int landingTime_f = landingTime * 25;
 
-			// Establish trajectory in pixels
-			estimatedTrajectory = vector<Point3d>();
+		//	// Establish trajectory in pixels
+		//	estimatedTrajectory = vector<Point3d>();
 
-			// Ball velocity p/f
-			velocity.x = velocity.x * 18.3 / 25;
-			velocity.y = velocity.y * 15.9 / 25;
+		//	// Ball velocity p/f
+		//	velocity.x = velocity.x * 18.3 / 25;
+		//	velocity.y = velocity.y * 15.9 / 25;
 
-			cout << velocity.z << endl;
+		//	cout << velocity.z << endl;
 
-			for (int t = 0; t < landingTime_f; t++)
-			{
-				float x = velocity.x * t + currentPos.x * 18.3;
-				float y = velocity.y * t + currentPos.y * 15.9;
-				float z = velocity.z * t - 0.00785 * pow(t,2);
+		//	for (int t = 0; t < landingTime_f; t++)
+		//	{
+		//		float x = velocity.x * t + currentPos.x * 18.3;
+		//		float y = velocity.y * t + currentPos.y * 15.9;
+		//		float z = velocity.z * t - 0.00785 * pow(t,2);
 
-				estimatedTrajectory.push_back(Point3d(x, y, z));
-			}
-		}
+		//		estimatedTrajectory.push_back(Point3d(x, y, z));
+		//	}
+		//}
 
 		//=========================================================================================
 		inline void drawPolygon (Mat& frame, ProjCandidate* cand) {
@@ -776,13 +750,14 @@ class MultiCameraTracker {
 		inline void drawPoint (Mat& image, ProjCandidate* cand, int rad = 1, int thickness = 1) {
 
 			if (cand->coords.size() < 1 || cand->coords.size() > 2000) return;
+			//if (cand->cameraID + 1 != 3 && cand->cameraID + 1 != 4) return;
 
 			if (thickness == 1) circle(image, *(cand->coords.end()-1), rad, colors[cand->cameraID], 1, CV_AA);
 			if (thickness == -1) circle(image, *(cand->coords.end() - 1), rad, teamColors[cand->teamID], thickness, CV_AA);
 
-			/*char ID[40];
+			char ID[40];
 			sprintf(ID, "%d", cand->cameraID + 1);
-			putText(image, ID, cand->getLastPoint() + Point2f(-10,10), CV_FONT_HERSHEY_SIMPLEX, 1, CV_RGB(255, 0, 0), 2);*/
+			putText(image, ID, cand->getLastPoint() + Point2f(-10,10), CV_FONT_HERSHEY_SIMPLEX, 1, CV_RGB(255, 0, 0), 2);
 		}
 
 		//=========================================================================================
@@ -882,98 +857,98 @@ class MultiCameraTracker {
 				if (globalFrameCount >= 358) file << 0 << " " << framesProcessed << endl;
 			}
 
-			// OPTIMIZE THIS SHIT
-			vector<ProjCandidate*> allPlayerCandidates;
-			allPlayerCandidates.reserve(currPlayerCandidates[0].size() + currPlayerCandidates[1].size() + currPlayerCandidates[2].size() + currPlayerCandidates[3].size() + currPlayerCandidates[4].size() + currPlayerCandidates[5].size()); // preallocate memory
-			allPlayerCandidates.insert(allPlayerCandidates.end(), currPlayerCandidates[0].begin(), currPlayerCandidates[0].end());
-			allPlayerCandidates.insert(allPlayerCandidates.end(), currPlayerCandidates[1].begin(), currPlayerCandidates[1].end());
-			allPlayerCandidates.insert(allPlayerCandidates.end(), currPlayerCandidates[2].begin(), currPlayerCandidates[2].end());
-			allPlayerCandidates.insert(allPlayerCandidates.end(), currPlayerCandidates[3].begin(), currPlayerCandidates[3].end());
-			allPlayerCandidates.insert(allPlayerCandidates.end(), currPlayerCandidates[4].begin(), currPlayerCandidates[4].end());
-			allPlayerCandidates.insert(allPlayerCandidates.end(), currPlayerCandidates[5].begin(), currPlayerCandidates[5].end());
+			// Random stuff
+			//vector<ProjCandidate*> allPlayerCandidates;
+			//allPlayerCandidates.reserve(currPlayerCandidates[0].size() + currPlayerCandidates[1].size() + currPlayerCandidates[2].size() + currPlayerCandidates[3].size() + currPlayerCandidates[4].size() + currPlayerCandidates[5].size()); // preallocate memory
+			//allPlayerCandidates.insert(allPlayerCandidates.end(), currPlayerCandidates[0].begin(), currPlayerCandidates[0].end());
+			//allPlayerCandidates.insert(allPlayerCandidates.end(), currPlayerCandidates[1].begin(), currPlayerCandidates[1].end());
+			//allPlayerCandidates.insert(allPlayerCandidates.end(), currPlayerCandidates[2].begin(), currPlayerCandidates[2].end());
+			//allPlayerCandidates.insert(allPlayerCandidates.end(), currPlayerCandidates[3].begin(), currPlayerCandidates[3].end());
+			//allPlayerCandidates.insert(allPlayerCandidates.end(), currPlayerCandidates[4].begin(), currPlayerCandidates[4].end());
+			//allPlayerCandidates.insert(allPlayerCandidates.end(), currPlayerCandidates[5].begin(), currPlayerCandidates[5].end());
 
-			/***************************************************
-						Epipolar Geometry for Player
-			****************************************************/
+			///***************************************************
+			//			Epipolar Geometry for Player
+			//****************************************************/
 
-			//const clock_t begin_time = clock();
+			////const clock_t begin_time = clock();
 
-			ProjCandidate* cand1 = NULL;
-			ProjCandidate* cand2 = NULL;
-			
-			updatedPlayerCand = vector<ProjCandidate*>();
-			vector<int> used;
-			unsigned i, j;
+			//ProjCandidate* cand1 = NULL;
+			//ProjCandidate* cand2 = NULL;
+			//
+			//updatedPlayerCand = vector<ProjCandidate*>();
+			//vector<int> used;
+			//unsigned i, j;
 
-			for (i = 0; i < allPlayerCandidates.size() - 1; i++)
-			{
-				// If candidate already used
-				if (find(used.begin(), used.end(), i) != used.end()) continue;
+			//for (i = 0; i < allPlayerCandidates.size() - 1; i++)
+			//{
+			//	// If candidate already used
+			//	if (find(used.begin(), used.end(), i) != used.end()) continue;
 
-				// Else initialize
-				cand1 = allPlayerCandidates[i];
-				vector<double> distance;
+			//	// Else initialize
+			//	cand1 = allPlayerCandidates[i];
+			//	vector<double> distance;
 
-				Point2f cand1Coords, cand2Coords;
+			//	Point2f cand1Coords, cand2Coords;
 
-				int offset = i + 1;
-				// Loop through remaining players
-				for (j = i + 1; j < allPlayerCandidates.size(); j++)
-				{
-					// If candidate already used
-					if (find(used.begin(), used.end(), j) != used.end())
-					{
-						distance.push_back(100);
-						continue;
-					}
+			//	int offset = i + 1;
+			//	// Loop through remaining players
+			//	for (j = i + 1; j < allPlayerCandidates.size(); j++)
+			//	{
+			//		// If candidate already used
+			//		if (find(used.begin(), used.end(), j) != used.end())
+			//		{
+			//			distance.push_back(100);
+			//			continue;
+			//		}
 
-					else
-					{
-						// Compute distance
-						cand2 = allPlayerCandidates[j];
+			//		else
+			//		{
+			//			// Compute distance
+			//			cand2 = allPlayerCandidates[j];
 
-						cand1Coords = Point2f((cand1->coords_meters.end() - 1)->x, (cand1->coords_meters.end() - 1)->y);
-						cand2Coords = Point2f((cand2->coords_meters.end() - 1)->x, (cand2->coords_meters.end() - 1)->y);
+			//			cand1Coords = Point2f((cand1->coords_meters.end() - 1)->x, (cand1->coords_meters.end() - 1)->y);
+			//			cand2Coords = Point2f((cand2->coords_meters.end() - 1)->x, (cand2->coords_meters.end() - 1)->y);
 
-						distance.push_back(norm(cand1Coords - cand2Coords));
-					}
-				}
+			//			distance.push_back(norm(cand1Coords - cand2Coords));
+			//		}
+			//	}
 
-				// If last player
-				if (distance.size() == 0)
-				{
-					updatedPlayerCand.push_back(cand1);
-					used.push_back(i);
-				}
-				
-				// Get nearest player
-				else
-				{
-					float	min_distance = *min_element(distance.begin(), distance.end());
-					int		min_index = min_element(distance.begin(), distance.end()) - distance.begin();
-					
-					// Update player pair
-					if (min_distance < 5)
-					{
-						cand1->ID = min(cand1->ID, cand2->ID);
-						cand1->ID2 = max(cand1->ID, cand2->ID);
-						updatedPlayerCand.push_back(cand1);
+			//	// If last player
+			//	if (distance.size() == 0)
+			//	{
+			//		updatedPlayerCand.push_back(cand1);
+			//		used.push_back(i);
+			//	}
+			//	
+			//	// Get nearest player
+			//	else
+			//	{
+			//		float	min_distance = *min_element(distance.begin(), distance.end());
+			//		int		min_index = min_element(distance.begin(), distance.end()) - distance.begin();
+			//		
+			//		// Update player pair
+			//		if (min_distance < 5)
+			//		{
+			//			cand1->ID = min(cand1->ID, cand2->ID);
+			//			cand1->ID2 = max(cand1->ID, cand2->ID);
+			//			updatedPlayerCand.push_back(cand1);
 
-						used.push_back(i); 
-						used.push_back(min_index + offset);
-					}
+			//			used.push_back(i); 
+			//			used.push_back(min_index + offset);
+			//		}
 
-					else
-					{
-						updatedPlayerCand.push_back(cand1);
-						used.push_back(i);
-					}
-				}
+			//		else
+			//		{
+			//			updatedPlayerCand.push_back(cand1);
+			//			used.push_back(i);
+			//		}
+			//	}
 
-				//cout << (*(updatedPlayerCand.end() - 1))->teamID;
-			}
+			//	//cout << (*(updatedPlayerCand.end() - 1))->teamID;
+			//}
 
-			//cout << "pc size " << allPlayerCandidates.size() << " used size " << used.size() << " upc size " << updatedPlayerCand.size() << endl;
+			////cout << "pc size " << allPlayerCandidates.size() << " used size " << used.size() << " upc size " << updatedPlayerCand.size() << endl;
 		}
 
 		//=========================================================================================

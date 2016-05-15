@@ -341,7 +341,7 @@ class Tracker {
 		static bool compareMerge_Player (PlayerCandidate* c1, PlayerCandidate* c2) {
 			
 			// --- check if two players need to be merged
-			return (c1->curCrd == c2->curCrd && !c1->Occlusion && !c2->Occlusion);
+			return (c1->curCrd == c2->curCrd/* && !c1->Occlusion && !c2->Occlusion*/);
 		}
 		
 		//=========================================================================================
@@ -665,7 +665,7 @@ class Tracker {
 					{
 						ball_addMoreCandidates(newCandidates, frame, 2, TID);
 					}
-
+					
 					for (auto bc : bCandidates) 
 					{
 						ball_updateBallCandidate(bc, frame, TID);
@@ -1186,8 +1186,8 @@ class Tracker {
 
 					// Set newly detected rectangle as curRect
 					Rect nRect = newCandidates[minIdx];
-					/*int pCandidate_teamID = appearAnalyzer.getTeamID(newCandidates[minIdx]);
-					p->teamID = pCandidate_teamID;*/
+					int pCandidate_teamID = appearAnalyzer.getTeamID(newCandidates[minIdx]);
+					p->teamID = pCandidate_teamID;
 					p->setRect(nRect);
 
 					p->Occlusion = true;
@@ -1213,7 +1213,10 @@ class Tracker {
 					p->setRect(nCrd);
 				}
 			}
-			
+
+			// ----- merge players -----
+			mergePlayers(frame);
+
 			// ----- add new players -----
 			for (unsigned i = 0; i < usedCandidates.size(); i++)
 			{
@@ -1222,50 +1225,47 @@ class Tracker {
 				{
 					// Get team
 					int pCandidate_teamID = appearAnalyzer.getTeamID(newCandidates[i]);
-					
+
 					// Construct player obj
 					pCandidates.push_back(new PlayerCandidate(curFrame, newCandCoords[i], newCandidates[i], appearAnalyzer.getTeamID(newCandidates[i]), true));
 				}
 			}
-
+			
 			// ----- Identify players under occlusion
-			//for (int i = 0; i < pCandidates.size(); i++)
-			//{
-			//	auto cand1 = pCandidates[i];
+			/*for (int i = 0; i < pCandidates.size(); i++)
+			{
+				auto cand1 = pCandidates[i];
 
-			//	vector<PlayerCandidate*> playersOccluded;
-			//	vector<Rect> playersRect; 		
-			//	vector<int> usedID;
+				vector<PlayerCandidate*> playersOccluded;
+				vector<Rect> playersRect; 		
+				vector<int> usedID;
 
-			//	playersOccluded.push_back(cand1);
-			//	playersRect.push_back(cand1->curRect);
-			//	usedID.push_back(i);
+				playersOccluded.push_back(cand1);
+				playersRect.push_back(cand1->curRect);
+				usedID.push_back(i);
 
-			//	// Loop through other players
-			//	for (int j = 0; j < pCandidates.size(); j++)
-			//	{
-			//		// Same player or not enough data to process
-			//		if (i == j || pCandidates[j]->prevRects.size() < 2) continue;
+				// Loop through other players
+				for (int j = 0; j < pCandidates.size(); j++)
+				{
+					// Same player or not enough data to process
+					if (i == j || pCandidates[j]->prevRects.size() < 2) continue;
 
-			//		auto cand2 = pCandidates[j];
-			//		Point cand2Crd = Point(cand2->curCrd.x, cand2->curCrd.y - cand2->curRect.height / 2);
+					auto cand2 = pCandidates[j];
+					Point cand2Crd = Point(cand2->curCrd.x, cand2->curCrd.y - cand2->curRect.height / 2);
 
-			//		// Center of other player is inside of current player and their areas differ significantly
-			//		if (cand1->curRect.contains(cand2Crd)/* && cand1->curRect.area() > 1.7 * cand2->curRect.area()*/)
-			//		{
-			//			playersOccluded.push_back(pCandidates[j]);
-			//			playersRect.push_back(pCandidates[j]->curRect);
-			//			usedID.push_back(j);
-			//		}
-			//	}
+					// Center of other player is inside of current player and their areas differ significantly
+					if (cand1->curRect.contains(cand2Crd) && cand1->curRect.area() > 1.7 * cand2->curRect.area())
+					{
+						playersOccluded.push_back(pCandidates[j]);
+						playersRect.push_back(pCandidates[j]->curRect);
+						usedID.push_back(j);
+					}
+				}
 
-			//	// Solve for Occlusion
-			//	if (playersOccluded.size() > 1)
-			//		appearAnalyzer.segmentPlayer(playersOccluded, mergeBoundingBoxes(playersRect), frame, TID, mask);
-			//}
-
-			// ----- merge players -----
-			mergePlayers(frame);
+				// Solve for Occlusion
+				if (playersOccluded.size() > 1)
+					appearAnalyzer.segmentPlayer(playersOccluded, mergeBoundingBoxes(playersRect), frame, TID, mask);
+			}*/
 
 			// ----- update info for all players -----
 			for (auto p : pCandidates) 
@@ -1624,7 +1624,7 @@ class Tracker {
 			unsigned s = unsigned(max(double(bc->coords.size())-25, 1.0));
 			for (unsigned i = s; i < bc->coords.size(); i++) 
 			{
-				line(frame, bc->coordsKF[i-1], bc->coordsKF[i], CV_RGB(255, 255, 0), 1, CV_AA);
+				line(frame, bc->coordsKF[i-1], bc->coordsKF[i], CV_RGB(255, 0, 0), 1, CV_AA);
 			}
 
 			// Ball state
@@ -1663,9 +1663,9 @@ class Tracker {
 			if (height == 0) return;
 
 			// Display text
-			char label[40];
-			sprintf(label, "%2.2f", height/*, bc->id, Ball.size()*//*, bc->curAppearM, Ball.size()*/);
-			putText(frame, label, Point((bc->coordsKF.end() - 1)->x + 40, (bc->coordsKF.end() - 1)->y + 20), CV_FONT_HERSHEY_SIMPLEX, 3, CV_RGB(255, 0, 0), 2);
+			//char label[40];
+			//sprintf(label, "%2.2f", height/*, bc->id, Ball.size()*//*, bc->curAppearM, Ball.size()*/);
+			//putText(frame, label, Point((bc->coordsKF.end() - 1)->x + 40, (bc->coordsKF.end() - 1)->y + 20), CV_FONT_HERSHEY_SIMPLEX, 3, CV_RGB(255, 0, 0), 2);
 
 		}
 

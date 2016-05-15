@@ -327,7 +327,15 @@ int main() {
 				if (horFlip) { flip(frame, frame, 1); } // !!!!! some source videos might be flipped !!!!!
 
 				Mat mask;
-				mask = remover.processFrame(frame);
+				mask = remover.processFrame(frame, TID);
+
+			/*	if (TID == 3)
+				{
+					char filename[40];
+					sprintf(filename, "result.png");
+					imwrite(filename, mask);
+					waitKey(0);
+				}*/
 
 				/*MOG2->apply(frame, mask);
 
@@ -376,13 +384,6 @@ int main() {
 				{
 					tracker.drawTrackingMarks(frame, TID);
 				}
-
-				/*if (TID == 3)
-				{
-					char filename[40];
-					sprintf_s(filename, "frame_%d.png", globalFrameCount);
-					imwrite(filename, frame);
-				}*/
 				
 				#ifdef WRITE_VIDEO
 				vidWriter << frame;
