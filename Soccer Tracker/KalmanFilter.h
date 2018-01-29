@@ -1,8 +1,8 @@
 #pragma once
 
-#include <highgui.h>
-#include "C:\opencv\build\include\opencv2\video\tracking.hpp"
-#include <cv.h>
+#include <opencv/highgui.h>
+#include <opencv2/video/tracking.hpp>
+#include <opencv/cv.h>
 #include <vector>
 #include "globalSettings.h"
 

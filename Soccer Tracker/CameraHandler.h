@@ -1,9 +1,9 @@
 #pragma once
 
-#include <highgui.h>
+#include <opencv/highgui.h>
 #include <vector>
-#include <cv.h>
-#include <opencv2\opencv.hpp>
+#include <opencv/cv.h>
+#include <opencv2/opencv.hpp>
 #include "globalSettings.h"
 #include "Configurator.h"
 #include "VideoReader.h"

@@ -2,14 +2,14 @@
 <opencv_storage>
 
 <!-- Names of video files -->
-<video1> C:\SoccerVid\1.avi </video1>
-<video2> C:\SoccerVid\2.avi </video2>
-<video3> C:\SoccerVid\3.avi </video3>
-<video4> C:\SoccerVid\4.avi </video4>
-<video5> C:\SoccerVid\5.avi </video5>
-<video6> C:\SoccerVid\6.avi </video6>
+<video1> ..\dataset\filmrole1.avi </video1>
+<video2> ..\dataset\filmrole2.avi </video2>
+<video3> ..\dataset\filmrole3.avi </video3>
+<video4> ..\dataset\filmrole4.avi </video4>
+<video5> ..\dataset\filmrole5.avi </video5>
+<video6> ..\dataset\filmrole6.avi </video6>
 
-<fieldModel> C:\SoccerVid\modelNew2.png </fieldModel>
+<fieldModel> ..\dataset\fieldmodel.jpg </fieldModel>
 
 <!-- 
     camera 1 : real 47 - 81 new 47 - 105
@@ -38,7 +38,7 @@
  
 
 <!-- Folder to write outputVideos to -->
-<outputVideoFolder> C:\SoccerVid\results\ </outputVideoFolder>
+<outputVideoFolder> ..\dataset\results\ </outputVideoFolder>
 
 <!-- homography matrices for cameras -->
 <homography1 type_id="opencv-matrix">

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cv.h>
+#include <opencv/cv.h>
 #include <vector>
 #include "pugixml/src/pugixml.hpp"
 

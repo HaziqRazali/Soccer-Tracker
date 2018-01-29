@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cv.h>
+#include <opencv/cv.h>
 #include <utility>
 #include <set>
 

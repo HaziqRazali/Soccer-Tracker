@@ -1,8 +1,8 @@
 #pragma once
 
-#include <cv.h>
-#include <opencv2\opencv.hpp>
-#include <highgui.h>
+#include <opencv/cv.h>
+#include <opencv2/opencv.hpp>
+#include <opencv/highgui.h>
 #include <vector>
 
 using namespace std;

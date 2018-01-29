@@ -1,7 +1,7 @@
 #pragma once
 
-#include <cv.h>
-#include <opencv2\opencv.hpp>
+#include <opencv/cv.h>
+#include <opencv2/opencv.hpp>
 #include <vector>
 #include <limits.h>
 

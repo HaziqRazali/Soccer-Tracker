@@ -3,7 +3,7 @@
 #include "globalSettings.h"
 #include "KalmanFilter.h"
 #include <vector>
-#include <cv.h>
+#include <opencv/cv.h>
 
 using namespace cv;
 using namespace std;

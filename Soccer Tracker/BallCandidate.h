@@ -2,7 +2,7 @@
 
 #include "globalSettings.h"
 #include "KalmanFilter.h"
-#include <cv.h>
+#include <opencv/cv.h>
 #include <vector>
 #include<iostream>
 

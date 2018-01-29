@@ -1,33 +1,5 @@
-﻿/*
-
-1 pixel in x = 0.05464m
-1 pixel in y = 0.06291m
-Radius of ball (Googled) = 0.22m
-
-If everything is in meters, then find out how to generate actual velocity given 2 frames
-
-TTD
-[✓]	Compile video datasets
-[✓]	3D Localization
-[✓]	Multiple and Single Camera Height Estimation
-[✓]	Camera Coordinates Extraction
-[✓]	Kick off
-[✓]	Camera Handoff
-[✓]	Coordinated Tracking
-[✓]	Player Occlusion
-[]      Object / Camera Handoff
-[]	Physics
-
-[✓]	Results and Conclusion
-
-Current Tasks
-[✓] Mixture of Gaussian vs Adaptive Histogram on Alfheim / ISSIA
-[] Extrapolate Trajectory
-
-*/
-
-#include <opencv\cv.h>
-#include <opencv2\opencv.hpp>
+﻿#include <opencv2/opencv.hpp>
+#include <opencv/cv.h>
 
 #include "xmlParser.h"
 #include "TrajectoryAnalyzer.h"
@@ -238,9 +210,8 @@ int main() {
 	#pragma omp parallel shared(trackInfo, processedFrames_s, x_, y_, camerasReady, pauseFlag, cameraView, showTraj, slowMotion)
 	{
 		int TID = omp_get_thread_num();
-
 		int debugger = 0;
-
+		
 		Ptr<BackgroundSubtractorMOG2> MOG2;
 		MOG2 = createBackgroundSubtractorMOG2();
 		MOG2->setShadowValue(0);
@@ -266,7 +237,7 @@ int main() {
 			Mat frame;
 			BackGroundRemover remover(500, 256, 5, false);
 			ContourAnalyzer cAnalyzer;
-
+			
 			Tracker tracker;
 			tracker.initialize(TID);
 			tracker.setBallTempls(camera->ballTemplates);
@@ -275,6 +246,7 @@ int main() {
 			//=====================================================
 
 			while (true) {
+				
 				// ========== check value of pauseFlag ==========
 				#pragma omp flush (pauseFlag)
 				if (pauseFlag == 2) 
@@ -329,7 +301,7 @@ int main() {
 				Mat mask;
 				mask = remover.processFrame(frame, TID);
 
-			/*	if (TID == 3)
+				/*if (TID == 3)
 				{
 					char filename[40];
 					sprintf(filename, "result.png");
