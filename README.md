@@ -16,7 +16,6 @@ What we used to develop the system
   * OpenCV 3.3
   * Microsoft Visual Studio Community 2015
   * Windows 10
-  * Machine with 6 cores
   
 # Brief Project Structure
 ------------
