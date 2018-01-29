@@ -34,6 +34,8 @@ What we used to develop the system
 # Usage
 ------------
 
+ * Install OpenCV
+
  * Download the dataset at [http://www.issia.cnr.it/wp/dataset-cnr-fig/](http://www.issia.cnr.it/wp/dataset-cnr-fig/) and place them in the dataset directory
  
  <img src="/others/dataset.png" width="90%" height="90%">
