@@ -22,6 +22,7 @@ What we used to develop the system
 
     ├── Soccer Tracker                 : Directory containing the source and header files of the project
     ├── dataset                        : Directory containing the dataset and the results folder
+    ├── others                         : Directory containing images for instructions
     ├── Soccer Tracker.sln             : MSVC Project Solution
     |── Report.pdf                     : Report
  
