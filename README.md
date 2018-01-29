@@ -38,7 +38,7 @@ What we used to develop the system
  
  <img src="/others/dataset.png" width="90%" height="90%">
 
- * Launch `Soccer Tracker.sln`. The settings listed below are meant as a reference as they should have already been set in the project.
+ * Launch `Soccer Tracker.sln`.
   
  * Set solution configuration and platform to `Release` and `x64`.
   
